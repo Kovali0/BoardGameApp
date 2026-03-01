@@ -24,6 +24,7 @@ class SessionProvider with ChangeNotifier {
     required int durationSeconds,
     required List<Map<String, dynamic>> playerData,
     String? notes,
+    bool isFromCollection = true,
   }) async {
     final sessionId = _uuid.v4();
     final players = playerData
@@ -46,6 +47,7 @@ class SessionProvider with ChangeNotifier {
       durationSeconds: durationSeconds,
       players: players,
       notes: notes,
+      isFromCollection: isFromCollection,
     );
     await _db.insertSession(session);
     _sessions.insert(0, session);

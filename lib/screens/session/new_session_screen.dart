@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../../providers/game_provider.dart';
 import '../../models/board_game.dart';
 import 'random_starter_screen.dart';
@@ -13,7 +14,9 @@ class NewSessionScreen extends StatefulWidget {
 }
 
 class _NewSessionScreenState extends State<NewSessionScreen> {
+  bool _isGuestGame = false;
   BoardGame? _selectedGame;
+  final _guestGameNameController = TextEditingController();
   final List<TextEditingController> _playerControllers = [];
 
   @override
@@ -26,6 +29,7 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
 
   @override
   void dispose() {
+    _guestGameNameController.dispose();
     for (final c in _playerControllers) {
       c.dispose();
     }
@@ -33,7 +37,7 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
   }
 
   void _addPlayer() {
-    final maxP = _selectedGame?.maxPlayers ?? 20;
+    final maxP = _isGuestGame ? 20 : (_selectedGame?.maxPlayers ?? 20);
     if (_playerControllers.length < maxP) {
       setState(() => _playerControllers.add(TextEditingController()));
     }
@@ -49,12 +53,6 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
   }
 
   void _startSession() {
-    if (_selectedGame == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a game first')),
-      );
-      return;
-    }
     final players = _playerControllers
         .map((c) => c.text.trim())
         .where((name) => name.isNotEmpty)
@@ -65,15 +63,50 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
       );
       return;
     }
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => RandomStarterScreen(
-          game: _selectedGame!,
-          players: players,
+
+    if (_isGuestGame) {
+      final name = _guestGameNameController.text.trim();
+      if (name.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter a game name')),
+        );
+        return;
+      }
+      final tempGame = BoardGame(
+        id: const Uuid().v4(),
+        name: name,
+        minPlayers: 1,
+        maxPlayers: 20,
+        createdAt: DateTime.now(),
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RandomStarterScreen(
+            game: tempGame,
+            players: players,
+            isFromCollection: false,
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      if (_selectedGame == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a game first')),
+        );
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RandomStarterScreen(
+            game: _selectedGame!,
+            players: players,
+            isFromCollection: true,
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -87,38 +120,72 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Select Game', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Consumer<GameProvider>(
-            builder: (context, provider, _) {
-              if (provider.games.isEmpty) {
-                return const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text(
-                      'No games in catalog. Add a game first!',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
-                );
-              }
-              return DropdownButtonFormField<BoardGame>(
-                value: _selectedGame,
-                hint: const Text('Choose a game...'),
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.casino),
-                ),
-                items: provider.games
-                    .map((game) => DropdownMenuItem(
-                          value: game,
-                          child: Text(game.name),
-                        ))
-                    .toList(),
-                onChanged: (game) => setState(() => _selectedGame = game),
-              );
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(
+                value: false,
+                label: Text('My Collection'),
+                icon: Icon(Icons.casino_outlined),
+              ),
+              ButtonSegment(
+                value: true,
+                label: Text('Other Game'),
+                icon: Icon(Icons.extension_outlined),
+              ),
+            ],
+            selected: {_isGuestGame},
+            onSelectionChanged: (Set<bool> selection) {
+              setState(() {
+                _isGuestGame = selection.first;
+                _selectedGame = widget.preselectedGame;
+                _guestGameNameController.clear();
+              });
             },
           ),
+          const SizedBox(height: 20),
+          Text('Game', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          if (_isGuestGame)
+            TextFormField(
+              controller: _guestGameNameController,
+              decoration: const InputDecoration(
+                hintText: 'Game name...',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.extension_outlined),
+              ),
+              textCapitalization: TextCapitalization.words,
+            )
+          else
+            Consumer<GameProvider>(
+              builder: (context, provider, _) {
+                if (provider.games.isEmpty) {
+                  return const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'No games in catalog. Add a game first!',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  );
+                }
+                return DropdownButtonFormField<BoardGame>(
+                  value: _selectedGame,
+                  hint: const Text('Choose a game...'),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.casino),
+                  ),
+                  items: provider.games
+                      .map((game) => DropdownMenuItem(
+                            value: game,
+                            child: Text(game.name),
+                          ))
+                      .toList(),
+                  onChanged: (game) => setState(() => _selectedGame = game),
+                );
+              },
+            ),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

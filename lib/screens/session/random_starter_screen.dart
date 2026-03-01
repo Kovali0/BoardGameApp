@@ -6,8 +6,13 @@ import 'active_session_screen.dart';
 class RandomStarterScreen extends StatefulWidget {
   final BoardGame game;
   final List<String> players;
-  const RandomStarterScreen(
-      {super.key, required this.game, required this.players});
+  final bool isFromCollection;
+  const RandomStarterScreen({
+    super.key,
+    required this.game,
+    required this.players,
+    this.isFromCollection = true,
+  });
 
   @override
   State<RandomStarterScreen> createState() => _RandomStarterScreenState();
@@ -159,6 +164,7 @@ class _RandomStarterScreenState extends State<RandomStarterScreen>
                       game: widget.game,
                       players: widget.players,
                       starterName: _winner!,
+                      isFromCollection: widget.isFromCollection,
                     ),
                   ),
                 ),

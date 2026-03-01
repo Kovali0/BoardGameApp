@@ -19,7 +19,20 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'board_game_manager.db');
-    return openDatabase(path, version: 1, onCreate: _onCreate);
+    return openDatabase(
+      path,
+      version: 2,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+        'ALTER TABLE sessions ADD COLUMN is_from_collection INTEGER NOT NULL DEFAULT 1',
+      );
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -43,7 +56,8 @@ class DatabaseHelper {
         start_time TEXT NOT NULL,
         end_time TEXT,
         duration_seconds INTEGER NOT NULL,
-        notes TEXT
+        notes TEXT,
+        is_from_collection INTEGER NOT NULL DEFAULT 1
       )
     ''');
 

@@ -7,12 +7,14 @@ class ActiveSessionScreen extends StatefulWidget {
   final BoardGame game;
   final List<String> players;
   final String starterName;
+  final bool isFromCollection;
 
   const ActiveSessionScreen({
     super.key,
     required this.game,
     required this.players,
     required this.starterName,
+    this.isFromCollection = true,
   });
 
   @override
@@ -78,6 +80,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
           starterName: widget.starterName,
           startTime: _startTime,
           durationSeconds: _seconds,
+          isFromCollection: widget.isFromCollection,
         ),
       ),
     );

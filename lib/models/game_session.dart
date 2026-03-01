@@ -9,6 +9,7 @@ class GameSession {
   final int durationSeconds;
   final List<PlayerResult> players;
   final String? notes;
+  final bool isFromCollection;
 
   const GameSession({
     required this.id,
@@ -19,6 +20,7 @@ class GameSession {
     required this.durationSeconds,
     required this.players,
     this.notes,
+    this.isFromCollection = true,
   });
 
   String get durationFormatted {
@@ -38,6 +40,7 @@ class GameSession {
         'end_time': endTime?.toIso8601String(),
         'duration_seconds': durationSeconds,
         'notes': notes,
+        'is_from_collection': isFromCollection ? 1 : 0,
       };
 
   factory GameSession.fromMap(
@@ -55,5 +58,6 @@ class GameSession {
         durationSeconds: map['duration_seconds'] as int,
         players: players,
         notes: map['notes'] as String?,
+        isFromCollection: (map['is_from_collection'] as int? ?? 1) == 1,
       );
 }

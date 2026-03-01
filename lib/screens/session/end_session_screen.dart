@@ -9,6 +9,7 @@ class EndSessionScreen extends StatefulWidget {
   final String starterName;
   final DateTime startTime;
   final int durationSeconds;
+  final bool isFromCollection;
 
   const EndSessionScreen({
     super.key,
@@ -17,6 +18,7 @@ class EndSessionScreen extends StatefulWidget {
     required this.starterName,
     required this.startTime,
     required this.durationSeconds,
+    this.isFromCollection = true,
   });
 
   @override
@@ -106,6 +108,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
           notes: _notesController.text.trim().isEmpty
               ? null
               : _notesController.text.trim(),
+          isFromCollection: widget.isFromCollection,
         );
 
     if (mounted) {
