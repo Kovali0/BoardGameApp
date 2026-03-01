@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../providers/session_provider.dart';
 import 'catalog/catalog_screen.dart';
-import 'session/new_session_screen.dart';
+import 'session/play_landing_screen.dart';
 import 'history/history_screen.dart';
 import 'statistics/statistics_screen.dart';
 
@@ -30,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final screens = [
       const CatalogScreen(),
-      const NewSessionScreen(),
+      const PlayLandingScreen(),
       const HistoryScreen(),
       const StatisticsScreen(),
     ];

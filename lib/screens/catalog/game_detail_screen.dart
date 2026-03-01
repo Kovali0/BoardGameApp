@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/board_game.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/session_provider.dart';
-import '../session/new_session_screen.dart';
+import '../session/play_landing_screen.dart';
 import 'add_game_screen.dart';
 
 class GameDetailScreen extends StatelessWidget {
@@ -114,7 +114,7 @@ class GameDetailScreen extends StatelessWidget {
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => NewSessionScreen(preselectedGame: game)),
+              builder: (_) => PlayLandingScreen(preselectedGame: game)),
         ),
         icon: const Icon(Icons.play_arrow),
         label: const Text('Play Now'),
