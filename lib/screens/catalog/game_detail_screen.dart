@@ -1,0 +1,147 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../models/board_game.dart';
+import '../../providers/game_provider.dart';
+import '../../providers/session_provider.dart';
+import '../session/new_session_screen.dart';
+import 'add_game_screen.dart';
+
+class GameDetailScreen extends StatelessWidget {
+  final BoardGame game;
+  const GameDetailScreen({super.key, required this.game});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(game.name),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => AddGameScreen(game: game)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => _confirmDelete(context),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.group),
+                      const SizedBox(width: 8),
+                      Text('${game.minPlayers}–${game.maxPlayers} players',
+                          style: Theme.of(context).textTheme.bodyLarge),
+                    ],
+                  ),
+                  if (game.description != null &&
+                      game.description!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(game.description!),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (game.setupHints != null && game.setupHints!.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text('Setup Hints',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.lightbulb_outline, color: Colors.amber),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(game.setupHints!)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Text('Play History', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Consumer<SessionProvider>(
+            builder: (context, provider, _) {
+              final sessions = provider.sessionsForGame(game.id);
+              if (sessions.isEmpty) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('No sessions yet for this game.',
+                        style: TextStyle(color: Colors.grey)),
+                  ),
+                );
+              }
+              return Column(
+                children: sessions.map((session) {
+                  final winner = session.players.isNotEmpty
+                      ? session.players.first.playerName
+                      : '?';
+                  final date = session.startTime;
+                  final dateStr =
+                      '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+                  return ListTile(
+                    leading:
+                        const Icon(Icons.emoji_events, color: Colors.amber),
+                    title: Text(winner),
+                    subtitle: Text(dateStr),
+                    trailing: Text(session.durationFormatted),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => NewSessionScreen(preselectedGame: game)),
+        ),
+        icon: const Icon(Icons.play_arrow),
+        label: const Text('Play Now'),
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Game?'),
+        content: Text('Are you sure you want to delete "${game.name}"?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              context.read<GameProvider>().deleteGame(game.id);
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+}
