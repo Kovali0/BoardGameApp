@@ -5,6 +5,7 @@ import '../providers/session_provider.dart';
 import 'catalog/catalog_screen.dart';
 import 'session/new_session_screen.dart';
 import 'history/history_screen.dart';
+import 'statistics/statistics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
       const CatalogScreen(),
       const NewSessionScreen(),
       const HistoryScreen(),
+      const StatisticsScreen(),
     ];
 
     return Scaffold(
@@ -54,6 +56,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.history_outlined),
             selectedIcon: Icon(Icons.history),
             label: 'History',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: 'Statistics',
           ),
         ],
       ),
