@@ -70,7 +70,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                 )
               : _StatisticsContent(sessions: sessions),
           _GamesStatsContent(sessions: sessions, allGames: allGames),
-          const _ComingSoonTab(label: 'Players'),
+          _PlayersStatsContent(sessions: sessions),
         ],
       ),
     );
@@ -379,27 +379,251 @@ class _GameDetailCard extends StatelessWidget {
   }
 }
 
-// ─── Players Tab (placeholder) ────────────────────────────────────────────────
+// ─── Players Tab ──────────────────────────────────────────────────────────────
 
-class _ComingSoonTab extends StatelessWidget {
-  final String label;
+class _PlayersStatsContent extends StatelessWidget {
+  final List<GameSession> sessions;
 
-  const _ComingSoonTab({required this.label});
+  const _PlayersStatsContent({required this.sessions});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    // Build lightweight summary just for the list
+    final playerMap = <String, ({int sessions, int wins})>{};
+    for (final s in sessions) {
+      for (final p in s.players) {
+        final prev = playerMap[p.playerName];
+        playerMap[p.playerName] = (
+          sessions: (prev?.sessions ?? 0) + 1,
+          wins: (prev?.wins ?? 0) + (p.rank == 1 ? 1 : 0),
+        );
+      }
+    }
+
+    final players = playerMap.entries.toList()
+      ..sort((a, b) {
+        final cmp = b.value.wins.compareTo(a.value.wins);
+        return cmp != 0 ? cmp : b.value.sessions.compareTo(a.value.sessions);
+      });
+
+    if (players.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('No players yet', style: TextStyle(fontSize: 18, color: Colors.grey)),
+            SizedBox(height: 8),
+            Text('Play some games to see player stats!', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: players.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, i) {
+        final name = players[i].key;
+        final stats = players[i].value;
+        return Card(
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+              '${stats.sessions} session${stats.sessions == 1 ? '' : 's'} · '
+              '${stats.wins} win${stats.wins == 1 ? '' : 's'}',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => _PlayerDetailScreen(
+                playerName: name,
+                sessions: sessions,
+              ),
+            )),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── Player Detail Screen ─────────────────────────────────────────────────────
+
+class _PlayerGameData {
+  final String name;
+  int sessionCount = 0;
+  int wins = 0;
+  int secondPlaces = 0;
+  int thirdPlaces = 0;
+  final List<int> scores = [];
+
+  _PlayerGameData({required this.name});
+
+  double get winRate => sessionCount > 0 ? wins / sessionCount : 0;
+  int? get highestScore => scores.isEmpty ? null : scores.reduce((a, b) => a > b ? a : b);
+  double? get avgScore =>
+      scores.isEmpty ? null : scores.reduce((a, b) => a + b) / scores.length;
+}
+
+class _PlayerDetailScreen extends StatelessWidget {
+  final String playerName;
+  final List<GameSession> sessions;
+
+  const _PlayerDetailScreen({required this.playerName, required this.sessions});
+
+  @override
+  Widget build(BuildContext context) {
+    int wins = 0, secondPlaces = 0, thirdPlaces = 0, totalSeconds = 0;
+    final gameMap = <String, _PlayerGameData>{};
+
+    for (final s in sessions) {
+      final match = s.players.where((p) => p.playerName == playerName);
+      if (match.isEmpty) continue;
+      final p = match.first;
+
+      totalSeconds += s.durationSeconds;
+      if (p.rank == 1) {
+        wins++;
+      } else if (p.rank == 2) {
+        secondPlaces++;
+      } else if (p.rank == 3) {
+        thirdPlaces++;
+      }
+
+      final gd = gameMap.putIfAbsent(s.gameId, () => _PlayerGameData(name: s.gameName));
+      gd.sessionCount++;
+      if (p.rank == 1) {
+        gd.wins++;
+      } else if (p.rank == 2) {
+        gd.secondPlaces++;
+      } else if (p.rank == 3) {
+        gd.thirdPlaces++;
+      }
+      if (p.score != null) { gd.scores.add(p.score!); }
+    }
+
+    final totalSessions = gameMap.values.fold(0, (sum, g) => sum + g.sessionCount);
+    final uniqueGames = gameMap.length;
+    final winRate = totalSessions > 0 ? wins / totalSessions : 0.0;
+
+    String? mostPlayed;
+    if (gameMap.isNotEmpty) {
+      mostPlayed = gameMap.values
+          .reduce((a, b) => a.sessionCount >= b.sessionCount ? a : b)
+          .name;
+    }
+
+    final games = gameMap.values.toList()
+      ..sort((a, b) => b.sessionCount.compareTo(a.sessionCount));
+
+    return Scaffold(
+      appBar: AppBar(title: Text(playerName)),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          const Icon(Icons.lock_outline, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 18, color: Colors.grey),
+          // ── Section 1: Overview ──
+          const _SectionHeader('Overview'),
+          Row(
+            children: [
+              Expanded(child: _StatCard(label: 'Sessions', value: '$totalSessions')),
+              const SizedBox(width: 8),
+              Expanded(child: _StatCard(label: 'Wins', value: '$wins')),
+              const SizedBox(width: 8),
+              Expanded(child: _StatCard(label: 'Win rate', value: '${(winRate * 100).round()}%')),
+            ],
           ),
           const SizedBox(height: 8),
-          const Text('Coming soon', style: TextStyle(color: Colors.grey)),
+          Row(
+            children: [
+              Expanded(child: _StatCard(label: '2nd places', value: '$secondPlaces')),
+              const SizedBox(width: 8),
+              Expanded(child: _StatCard(label: '3rd places', value: '$thirdPlaces')),
+              const SizedBox(width: 8),
+              Expanded(child: _StatCard(label: 'Games', value: '$uniqueGames')),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Column(
+              children: [
+                _RecordRow(label: 'Total time', value: _formatSeconds(totalSeconds)),
+                if (mostPlayed != null) ...[
+                  const Divider(height: 1),
+                  _RecordRow(label: 'Most played', value: mostPlayed),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ── Section 2: Game Breakdown ──
+          if (games.isNotEmpty) ...[
+            const _SectionHeader('Game Breakdown'),
+            for (final game in games) ...[
+              _PlayerGameCard(data: game),
+              const SizedBox(height: 12),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PlayerGameCard extends StatelessWidget {
+  final _PlayerGameData data;
+
+  const _PlayerGameCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final highScore = data.highestScore;
+    final avgScore = data.avgScore;
+
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text(
+              data.name,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(child: _StatCard(label: 'Games', value: '${data.sessionCount}')),
+                const SizedBox(width: 8),
+                Expanded(child: _StatCard(label: 'Wins', value: '${data.wins}')),
+                const SizedBox(width: 8),
+                Expanded(child: _StatCard(label: '2nd', value: '${data.secondPlaces}')),
+                const SizedBox(width: 8),
+                Expanded(child: _StatCard(label: '3rd', value: '${data.thirdPlaces}')),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _StatCard(
+                    label: 'Win rate',
+                    value: '${(data.winRate * 100).round()}%',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (highScore != null || avgScore != null) ...[
+            const Divider(height: 1),
+            if (highScore != null)
+              _RecordRow(label: 'Best score', value: '$highScore pts'),
+            if (highScore != null && avgScore != null) const Divider(height: 1),
+            if (avgScore != null)
+              _RecordRow(label: 'Avg score', value: '${avgScore.toStringAsFixed(1)} pts'),
+          ],
         ],
       ),
     );
