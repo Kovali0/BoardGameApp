@@ -214,12 +214,32 @@ class _GameStatsData {
   int totalPlayers = 0;
   DateTime? lastPlayed;
   final List<int> scores = [];
+  final Map<String, int> playerWins = {};
+  final Map<String, int> playerBestScore = {};
+  int? longestSeconds;
+  int? shortestSeconds;
 
   _GameStatsData({required this.name});
 
   int get avgSeconds => sessionCount > 0 ? totalSeconds ~/ sessionCount : 0;
   double get avgPlayers => sessionCount > 0 ? totalPlayers / sessionCount : 0;
   int? get highestScore => scores.isEmpty ? null : scores.reduce((a, b) => a > b ? a : b);
+  int? get lowestScore => scores.isEmpty ? null : scores.reduce((a, b) => a < b ? a : b);
+  double? get avgScore => scores.isEmpty ? null : scores.reduce((a, b) => a + b) / scores.length;
+
+  String? get bestPlayer {
+    if (playerWins.isEmpty) return null;
+    final maxWins = playerWins.values.reduce((a, b) => a > b ? a : b);
+    final tied = playerWins.entries.where((e) => e.value == maxWins).map((e) => e.key).toList();
+    if (tied.length == 1) return tied.first;
+    // Tiebreak: highest score in this game, then alphabetical
+    return tied.reduce((a, b) {
+      final scoreA = playerBestScore[a] ?? -1;
+      final scoreB = playerBestScore[b] ?? -1;
+      if (scoreA != scoreB) return scoreA > scoreB ? a : b;
+      return a.compareTo(b) <= 0 ? a : b;
+    });
+  }
 }
 
 class _GamesStatsContent extends StatelessWidget {
@@ -239,8 +259,23 @@ class _GamesStatsContent extends StatelessWidget {
       if (data.lastPlayed == null || s.startTime.isAfter(data.lastPlayed!)) {
         data.lastPlayed = s.startTime;
       }
+      if (data.longestSeconds == null || s.durationSeconds > data.longestSeconds!) {
+        data.longestSeconds = s.durationSeconds;
+      }
+      if (data.shortestSeconds == null || s.durationSeconds < data.shortestSeconds!) {
+        data.shortestSeconds = s.durationSeconds;
+      }
       for (final p in s.players) {
-        if (p.score != null) data.scores.add(p.score!);
+        if (p.score != null) {
+          data.scores.add(p.score!);
+          final prev = data.playerBestScore[p.playerName];
+          if (prev == null || p.score! > prev) {
+            data.playerBestScore[p.playerName] = p.score!;
+          }
+        }
+        if (p.rank == 1) {
+          data.playerWins[p.playerName] = (data.playerWins[p.playerName] ?? 0) + 1;
+        }
       }
     }
 
@@ -274,8 +309,21 @@ class _GamesStatsContent extends StatelessWidget {
         if (playedGames.isNotEmpty) ...[
           const _SectionHeader('Played Games'),
           for (final stats in playedGames) ...[
-            _GameDetailCard(stats: stats, dateFormat: dateFormat),
-            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                title: Text(stats.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(
+                  '${stats.sessionCount} session${stats.sessionCount == 1 ? '' : 's'}'
+                  '${stats.lastPlayed != null ? ' · ${dateFormat.format(stats.lastPlayed!)}' : ''}',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => _GameDetailScreen(stats: stats),
+                )),
+              ),
+            ),
+            const SizedBox(height: 8),
           ],
           const SizedBox(height: 8),
         ],
@@ -313,64 +361,72 @@ class _GamesStatsContent extends StatelessWidget {
   }
 }
 
-class _GameDetailCard extends StatelessWidget {
+class _GameDetailScreen extends StatelessWidget {
   final _GameStatsData stats;
-  final DateFormat dateFormat;
 
-  const _GameDetailCard({required this.stats, required this.dateFormat});
+  const _GameDetailScreen({required this.stats});
 
   @override
   Widget build(BuildContext context) {
-    final highScore = stats.highestScore;
+    final dateFormat = DateFormat('d MMM yyyy');
+    final bestPlayer = stats.bestPlayer;
     final lastPlayed = stats.lastPlayed;
 
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Scaffold(
+      appBar: AppBar(title: Text(stats.name)),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Text(
-              stats.name,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            ),
+          // ── Overview ──
+          const _SectionHeader('Overview'),
+          Row(
+            children: [
+              Expanded(child: _StatCard(label: 'Sessions', value: '${stats.sessionCount}')),
+              const SizedBox(width: 8),
+              Expanded(child: _StatCard(label: 'Total time', value: _formatSeconds(stats.totalSeconds))),
+              const SizedBox(width: 8),
+              Expanded(child: _StatCard(label: 'Avg time', value: _formatSeconds(stats.avgSeconds))),
+            ],
           ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Row(
+          const SizedBox(height: 8),
+          Card(
+            child: Column(
               children: [
-                Expanded(
-                  child: _StatCard(label: 'Sessions', value: '${stats.sessionCount}'),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _StatCard(label: 'Total time', value: _formatSeconds(stats.totalSeconds)),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _StatCard(label: 'Avg time', value: _formatSeconds(stats.avgSeconds)),
-                ),
+                _RecordRow(label: 'Avg players', value: stats.avgPlayers.toStringAsFixed(1)),
+                if (lastPlayed != null) ...[
+                  const Divider(height: 1),
+                  _RecordRow(label: 'Last played', value: dateFormat.format(lastPlayed)),
+                ],
+                if (bestPlayer != null) ...[
+                  const Divider(height: 1),
+                  _RecordRow(label: 'Best player', value: bestPlayer),
+                ],
+                if (stats.longestSeconds != null) ...[
+                  const Divider(height: 1),
+                  _RecordRow(label: 'Longest session', value: _formatSeconds(stats.longestSeconds!)),
+                ],
+                if (stats.shortestSeconds != null && stats.sessionCount > 1) ...[
+                  const Divider(height: 1),
+                  _RecordRow(label: 'Shortest session', value: _formatSeconds(stats.shortestSeconds!)),
+                ],
               ],
             ),
           ),
-          const Divider(height: 1),
-          _RecordRow(
-            label: 'Avg players',
-            value: stats.avgPlayers.toStringAsFixed(1),
-          ),
-          if (lastPlayed != null) ...[
-            const Divider(height: 1),
-            _RecordRow(
-              label: 'Last played',
-              value: dateFormat.format(lastPlayed),
-            ),
-          ],
-          if (highScore != null) ...[
-            const Divider(height: 1),
-            _RecordRow(
-              label: 'Highest score',
-              value: '$highScore pts',
+
+          // ── Scores ──
+          if (stats.scores.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const _SectionHeader('Scores'),
+            Card(
+              child: Column(
+                children: [
+                  _RecordRow(label: 'Highest score', value: '${stats.highestScore} pts'),
+                  const Divider(height: 1),
+                  _RecordRow(label: 'Avg score', value: '${stats.avgScore!.toStringAsFixed(1)} pts'),
+                  const Divider(height: 1),
+                  _RecordRow(label: 'Lowest score', value: '${stats.lowestScore} pts'),
+                ],
+              ),
             ),
           ],
         ],
