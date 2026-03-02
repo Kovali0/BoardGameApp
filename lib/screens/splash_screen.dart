@@ -108,10 +108,7 @@ class _SplashScreenState extends State<SplashScreen>
                 child: ScaleTransition(
                   scale: _iconScale,
                   child: Container(
-                    width: 112,
-                    height: 112,
                     decoration: BoxDecoration(
-                      color: scheme.primaryContainer,
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
@@ -121,10 +118,13 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ],
                     ),
-                    child: Icon(
-                      Icons.casino_rounded,
-                      size: 64,
-                      color: scheme.onPrimaryContainer,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: Image.asset(
+                        'assets/icon.png',
+                        width: 112,
+                        height: 112,
+                      ),
                     ),
                   ),
                 ),
