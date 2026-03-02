@@ -36,7 +36,8 @@ class _StatisticsScreenState extends State<StatisticsScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Statistics'),
+        title: const Text('Useless statistics'),
+        centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
           tabs: const [

@@ -11,7 +11,7 @@ class PlayLandingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Play'),
+        title: const Text('Play new session'),
         centerTitle: true,
         automaticallyImplyLeading: preselectedGame != null,
       ),

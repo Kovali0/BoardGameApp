@@ -11,7 +11,7 @@ class HistoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('History'),
+        title: const Text('Sessions history'),
         centerTitle: true,
       ),
       body: Consumer<SessionProvider>(

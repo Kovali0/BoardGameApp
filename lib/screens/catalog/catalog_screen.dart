@@ -12,7 +12,7 @@ class CatalogScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Games'),
+        title: const Text('My Games Collection'),
         centerTitle: true,
       ),
       body: Consumer<GameProvider>(
