@@ -1,40 +1,83 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../models/board_game.dart';
 import '../../models/game_session.dart';
+import '../../providers/game_provider.dart';
 import '../../providers/session_provider.dart';
 
-class StatisticsScreen extends StatelessWidget {
+class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
+
+  @override
+  State<StatisticsScreen> createState() => _StatisticsScreenState();
+}
+
+class _StatisticsScreenState extends State<StatisticsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final sessions = context.watch<SessionProvider>().sessions;
+    final allGames = context.watch<GameProvider>().games;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Statistics')),
-      body: sessions.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.bar_chart, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'No sessions yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+      appBar: AppBar(
+        title: const Text('Statistics'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Global'),
+            Tab(text: 'Games'),
+            Tab(text: 'Players'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          sessions.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.bar_chart, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text(
+                        'No sessions yet',
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Play some games to see your stats!',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Play some games to see your stats!',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
-          : _StatisticsContent(sessions: sessions),
+                )
+              : _StatisticsContent(sessions: sessions),
+          _GamesStatsContent(sessions: sessions, allGames: allGames),
+          const _ComingSoonTab(label: 'Players'),
+        ],
+      ),
     );
   }
 }
+
+// ─── Global Tab ───────────────────────────────────────────────────────────────
 
 class _StatisticsContent extends StatelessWidget {
   final List<GameSession> sessions;
@@ -161,6 +204,209 @@ class _StatisticsContent extends StatelessWidget {
     );
   }
 }
+
+// ─── Games Tab ────────────────────────────────────────────────────────────────
+
+class _GameStatsData {
+  final String name;
+  int sessionCount = 0;
+  int totalSeconds = 0;
+  int totalPlayers = 0;
+  DateTime? lastPlayed;
+  final List<int> scores = [];
+
+  _GameStatsData({required this.name});
+
+  int get avgSeconds => sessionCount > 0 ? totalSeconds ~/ sessionCount : 0;
+  double get avgPlayers => sessionCount > 0 ? totalPlayers / sessionCount : 0;
+  int? get highestScore => scores.isEmpty ? null : scores.reduce((a, b) => a > b ? a : b);
+}
+
+class _GamesStatsContent extends StatelessWidget {
+  final List<GameSession> sessions;
+  final List<BoardGame> allGames;
+
+  const _GamesStatsContent({required this.sessions, required this.allGames});
+
+  @override
+  Widget build(BuildContext context) {
+    final statsMap = <String, _GameStatsData>{};
+    for (final s in sessions) {
+      final data = statsMap.putIfAbsent(s.gameId, () => _GameStatsData(name: s.gameName));
+      data.sessionCount++;
+      data.totalSeconds += s.durationSeconds;
+      data.totalPlayers += s.players.length;
+      if (data.lastPlayed == null || s.startTime.isAfter(data.lastPlayed!)) {
+        data.lastPlayed = s.startTime;
+      }
+      for (final p in s.players) {
+        if (p.score != null) data.scores.add(p.score!);
+      }
+    }
+
+    final playedGames = statsMap.values.toList()
+      ..sort((a, b) => b.sessionCount.compareTo(a.sessionCount));
+
+    final playedIds = statsMap.keys.toSet();
+    final neverPlayed = allGames.where((g) => !playedIds.contains(g.id)).toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+
+    if (playedGames.isEmpty && neverPlayed.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.sports_esports, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('No games yet', style: TextStyle(fontSize: 18, color: Colors.grey)),
+            SizedBox(height: 8),
+            Text('Add games to your collection!', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    final dateFormat = DateFormat('d MMM yyyy');
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (playedGames.isNotEmpty) ...[
+          const _SectionHeader('Played Games'),
+          for (final stats in playedGames) ...[
+            _GameDetailCard(stats: stats, dateFormat: dateFormat),
+            const SizedBox(height: 12),
+          ],
+          const SizedBox(height: 8),
+        ],
+        if (neverPlayed.isNotEmpty) ...[
+          const _SectionHeader('Never Played'),
+          Card(
+            child: Column(
+              children: [
+                for (int i = 0; i < neverPlayed.length; i++) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            neverPlayed[i].name,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                        const Text(
+                          'Not played yet',
+                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (i < neverPlayed.length - 1) const Divider(height: 1),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _GameDetailCard extends StatelessWidget {
+  final _GameStatsData stats;
+  final DateFormat dateFormat;
+
+  const _GameDetailCard({required this.stats, required this.dateFormat});
+
+  @override
+  Widget build(BuildContext context) {
+    final highScore = stats.highestScore;
+    final lastPlayed = stats.lastPlayed;
+
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text(
+              stats.name,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _StatCard(label: 'Sessions', value: '${stats.sessionCount}'),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _StatCard(label: 'Total time', value: _formatSeconds(stats.totalSeconds)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _StatCard(label: 'Avg time', value: _formatSeconds(stats.avgSeconds)),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          _RecordRow(
+            label: 'Avg players',
+            value: stats.avgPlayers.toStringAsFixed(1),
+          ),
+          if (lastPlayed != null) ...[
+            const Divider(height: 1),
+            _RecordRow(
+              label: 'Last played',
+              value: dateFormat.format(lastPlayed),
+            ),
+          ],
+          if (highScore != null) ...[
+            const Divider(height: 1),
+            _RecordRow(
+              label: 'Highest score',
+              value: '$highScore pts',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Players Tab (placeholder) ────────────────────────────────────────────────
+
+class _ComingSoonTab extends StatelessWidget {
+  final String label;
+
+  const _ComingSoonTab({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.lock_outline, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          const Text('Coming soon', style: TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Shared helpers ───────────────────────────────────────────────────────────
 
 String _medal(int index) {
   if (index == 0) return '🥇';
