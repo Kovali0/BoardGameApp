@@ -67,7 +67,21 @@ class _GameCard extends StatelessWidget {
         title: Text(game.name,
             style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text('${game.minPlayers}–${game.maxPlayers} players'),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onTap: () => context.read<GameProvider>().togglePlayed(game.id),
+              child: Icon(
+                game.hasBeenPlayed ? Icons.check_circle : Icons.hourglass_empty,
+                color: game.hasBeenPlayed ? Colors.green : Colors.amber.shade700,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => GameDetailScreen(game: game)),

@@ -6,6 +6,7 @@ class BoardGame {
   final int maxPlayers;
   final String? setupHints;
   final DateTime createdAt;
+  final bool hasBeenPlayed;
 
   const BoardGame({
     required this.id,
@@ -15,6 +16,7 @@ class BoardGame {
     required this.maxPlayers,
     this.setupHints,
     required this.createdAt,
+    this.hasBeenPlayed = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -25,6 +27,7 @@ class BoardGame {
         'max_players': maxPlayers,
         'setup_hints': setupHints,
         'created_at': createdAt.toIso8601String(),
+        'has_been_played': hasBeenPlayed ? 1 : 0,
       };
 
   factory BoardGame.fromMap(Map<String, dynamic> map) => BoardGame(
@@ -35,6 +38,7 @@ class BoardGame {
         maxPlayers: map['max_players'] as int,
         setupHints: map['setup_hints'] as String?,
         createdAt: DateTime.parse(map['created_at'] as String),
+        hasBeenPlayed: (map['has_been_played'] as int? ?? 0) == 1,
       );
 
   BoardGame copyWith({
@@ -43,6 +47,7 @@ class BoardGame {
     int? minPlayers,
     int? maxPlayers,
     String? setupHints,
+    bool? hasBeenPlayed,
   }) =>
       BoardGame(
         id: id,
@@ -52,5 +57,6 @@ class BoardGame {
         maxPlayers: maxPlayers ?? this.maxPlayers,
         setupHints: setupHints ?? this.setupHints,
         createdAt: createdAt,
+        hasBeenPlayed: hasBeenPlayed ?? this.hasBeenPlayed,
       );
 }

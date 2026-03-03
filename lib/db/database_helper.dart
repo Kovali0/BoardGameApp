@@ -21,7 +21,7 @@ class DatabaseHelper {
     final path = join(dbPath, 'board_game_manager.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -31,6 +31,11 @@ class DatabaseHelper {
     if (oldVersion < 2) {
       await db.execute(
         'ALTER TABLE sessions ADD COLUMN is_from_collection INTEGER NOT NULL DEFAULT 1',
+      );
+    }
+    if (oldVersion < 3) {
+      await db.execute(
+        'ALTER TABLE games ADD COLUMN has_been_played INTEGER NOT NULL DEFAULT 0',
       );
     }
   }
@@ -44,7 +49,8 @@ class DatabaseHelper {
         min_players INTEGER NOT NULL,
         max_players INTEGER NOT NULL,
         setup_hints TEXT,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        has_been_played INTEGER NOT NULL DEFAULT 0
       )
     ''');
 

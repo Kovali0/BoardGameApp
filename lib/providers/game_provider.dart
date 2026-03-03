@@ -30,6 +30,7 @@ class GameProvider with ChangeNotifier {
       maxPlayers: maxPlayers,
       setupHints: setupHints,
       createdAt: DateTime.now(),
+      hasBeenPlayed: false,
     );
     await _db.insertGame(game);
     _games.add(game);
@@ -45,6 +46,15 @@ class GameProvider with ChangeNotifier {
       _games.sort((a, b) => a.name.compareTo(b.name));
       notifyListeners();
     }
+  }
+
+  Future<void> togglePlayed(String id) async {
+    final index = _games.indexWhere((g) => g.id == id);
+    if (index == -1) return;
+    final updated = _games[index].copyWith(hasBeenPlayed: !_games[index].hasBeenPlayed);
+    await _db.updateGame(updated);
+    _games[index] = updated;
+    notifyListeners();
   }
 
   Future<void> deleteGame(String id) async {
