@@ -1,3 +1,4 @@
+import 'dart:math' show pi;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -115,7 +116,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          filteredSessions.isEmpty
+          filteredSessions.isEmpty && allGames.isEmpty
               ? const Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -134,7 +135,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                     ],
                   ),
                 )
-              : _StatisticsContent(sessions: filteredSessions),
+              : _StatisticsContent(sessions: filteredSessions, allGames: allGames),
           _GamesStatsContent(sessions: filteredSessions, allGames: allGames),
           _PlayersStatsContent(sessions: filteredSessions),
         ],
@@ -147,53 +148,54 @@ class _StatisticsScreenState extends State<StatisticsScreen>
 
 class _StatisticsContent extends StatelessWidget {
   final List<GameSession> sessions;
+  final List<BoardGame> allGames;
 
-  const _StatisticsContent({required this.sessions});
+  const _StatisticsContent({required this.sessions, required this.allGames});
 
   @override
   Widget build(BuildContext context) {
-    final totalSessions = sessions.length;
-    final uniqueGames = sessions.map((s) => s.gameId).toSet().length;
-    final totalSeconds = sessions.fold(0, (sum, s) => sum + s.durationSeconds);
+    final playedCount = allGames.where((g) => g.hasBeenPlayed).length;
+    final unplayedCount = allGames.length - playedCount;
 
-    // Top games
-    final gameMap = <String, ({String name, int count, int seconds})>{};
-    for (final s in sessions) {
-      final prev = gameMap[s.gameId];
-      if (prev == null) {
-        gameMap[s.gameId] = (name: s.gameName, count: 1, seconds: s.durationSeconds);
-      } else {
-        gameMap[s.gameId] = (
-          name: prev.name,
-          count: prev.count + 1,
-          seconds: prev.seconds + s.durationSeconds,
-        );
-      }
-    }
-    final topGames = gameMap.values.toList()
-      ..sort((a, b) => b.count.compareTo(a.count));
+    // Session-based widgets — only built when sessions exist (avoids .reduce crash)
+    List<Widget> sessionWidgets = [];
+    if (sessions.isNotEmpty) {
+      final totalSessions = sessions.length;
+      final uniqueGames = sessions.map((s) => s.gameId).toSet().length;
+      final totalSeconds = sessions.fold(0, (sum, s) => sum + s.durationSeconds);
 
-    // Records
-    final longest = sessions.reduce((a, b) => a.durationSeconds > b.durationSeconds ? a : b);
-    final shortest = sessions.reduce((a, b) => a.durationSeconds < b.durationSeconds ? a : b);
-    final avgSeconds = totalSeconds ~/ totalSessions;
-
-    // Player wins
-    final winMap = <String, int>{};
-    for (final s in sessions) {
-      for (final p in s.players) {
-        if (p.rank == 1) {
-          winMap[p.playerName] = (winMap[p.playerName] ?? 0) + 1;
+      final gameMap = <String, ({String name, int count, int seconds})>{};
+      for (final s in sessions) {
+        final prev = gameMap[s.gameId];
+        if (prev == null) {
+          gameMap[s.gameId] = (name: s.gameName, count: 1, seconds: s.durationSeconds);
+        } else {
+          gameMap[s.gameId] = (
+            name: prev.name,
+            count: prev.count + 1,
+            seconds: prev.seconds + s.durationSeconds,
+          );
         }
       }
-    }
-    final hallOfFame = winMap.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+      final topGames = gameMap.values.toList()
+        ..sort((a, b) => b.count.compareTo(a.count));
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Overview
+      final longest = sessions.reduce((a, b) => a.durationSeconds > b.durationSeconds ? a : b);
+      final shortest = sessions.reduce((a, b) => a.durationSeconds < b.durationSeconds ? a : b);
+      final avgSeconds = totalSeconds ~/ totalSessions;
+
+      final winMap = <String, int>{};
+      for (final s in sessions) {
+        for (final p in s.players) {
+          if (p.rank == 1) {
+            winMap[p.playerName] = (winMap[p.playerName] ?? 0) + 1;
+          }
+        }
+      }
+      final hallOfFame = winMap.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+      sessionWidgets = [
         const _SectionHeader('Overview'),
         Row(
           children: [
@@ -205,8 +207,6 @@ class _StatisticsContent extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 20),
-
-        // Top games
         const _SectionHeader('Top Games'),
         Card(
           child: Column(
@@ -223,8 +223,6 @@ class _StatisticsContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-
-        // Records
         const _SectionHeader('Records'),
         Card(
           child: Column(
@@ -247,8 +245,6 @@ class _StatisticsContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-
-        // Hall of fame
         if (hallOfFame.isNotEmpty) ...[
           const _SectionHeader('Player Hall of Fame'),
           Card(
@@ -266,6 +262,142 @@ class _StatisticsContent extends StatelessWidget {
           ),
           const SizedBox(height: 20),
         ],
+      ];
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (allGames.isNotEmpty) ...[
+          const _SectionHeader('Collection'),
+          _CollectionChart(played: playedCount, unplayed: unplayedCount),
+          const SizedBox(height: 20),
+        ],
+        if (sessions.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Text(
+                'Play some games to see session stats!',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+          ),
+        if (sessions.isNotEmpty) ...sessionWidgets,
+      ],
+    );
+  }
+}
+
+// ─── Collection Chart ─────────────────────────────────────────────────────────
+
+class _CollectionChart extends StatelessWidget {
+  final int played;
+  final int unplayed;
+
+  const _CollectionChart({required this.played, required this.unplayed});
+
+  @override
+  Widget build(BuildContext context) {
+    final total = played + unplayed;
+    final pct = total > 0 ? (played / total * 100).round() : 0;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 90,
+              height: 90,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CustomPaint(
+                    size: const Size(90, 90),
+                    painter: _DonutPainter(played: played, total: total),
+                  ),
+                  Text(
+                    '$pct%',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _LegendItem(color: Colors.green, label: 'Played', count: played),
+                  const SizedBox(height: 12),
+                  _LegendItem(color: Colors.amber.shade700, label: 'Unplayed', count: unplayed),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DonutPainter extends CustomPainter {
+  final int played;
+  final int total;
+
+  _DonutPainter({required this.played, required this.total});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 10;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    const strokeWidth = 16.0;
+    const startAngle = -pi / 2;
+
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.butt;
+
+    // Unplayed background ring
+    paint.color = Colors.amber.shade700;
+    canvas.drawArc(rect, startAngle, 2 * pi, false, paint);
+
+    // Played foreground arc
+    if (played > 0 && total > 0) {
+      paint.color = Colors.green;
+      canvas.drawArc(rect, startAngle, 2 * pi * played / total, false, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DonutPainter old) =>
+      old.played != played || old.total != total;
+}
+
+class _LegendItem extends StatelessWidget {
+  final Color color;
+  final String label;
+  final int count;
+
+  const _LegendItem({required this.color, required this.label, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Text(label, style: const TextStyle(fontSize: 14)),
+        const Spacer(),
+        Text('$count', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
       ],
     );
   }
