@@ -109,7 +109,7 @@ class _SplashScreenState extends State<SplashScreen>
                   scale: _iconScale,
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(28),
+                      borderRadius: BorderRadius.circular(36),
                       boxShadow: [
                         BoxShadow(
                           color: scheme.primary.withValues(alpha: 0.35),
@@ -119,11 +119,11 @@ class _SplashScreenState extends State<SplashScreen>
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(28),
+                      borderRadius: BorderRadius.circular(36),
                       child: Image.asset(
                         'assets/icon.png',
-                        width: 112,
-                        height: 112,
+                        width: 160,
+                        height: 160,
                       ),
                     ),
                   ),
