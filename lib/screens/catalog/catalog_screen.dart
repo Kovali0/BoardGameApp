@@ -73,7 +73,7 @@ class _GameCard extends StatelessWidget {
             GestureDetector(
               onTap: () => context.read<GameProvider>().togglePlayed(game.id),
               child: Icon(
-                game.hasBeenPlayed ? Icons.check_circle : Icons.hourglass_empty,
+                game.hasBeenPlayed ? Icons.check_circle : Icons.circle,
                 color: game.hasBeenPlayed ? Colors.green : Colors.amber.shade700,
                 size: 22,
               ),
