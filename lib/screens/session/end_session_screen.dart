@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/board_game.dart';
+import '../../providers/game_provider.dart';
 import '../../providers/session_provider.dart';
 
 class EndSessionScreen extends StatefulWidget {
@@ -110,6 +111,10 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
               : _notesController.text.trim(),
           isFromCollection: widget.isFromCollection,
         );
+
+    if (mounted) {
+      await context.read<GameProvider>().markAsPlayed(widget.game.id);
+    }
 
     if (mounted) {
       Navigator.of(context).popUntil((route) => route.isFirst);

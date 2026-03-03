@@ -57,6 +57,31 @@ class GameProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Marks a single game as played. No-op if already played or not found.
+  Future<void> markAsPlayed(String gameId) async {
+    final index = _games.indexWhere((g) => g.id == gameId);
+    if (index == -1 || _games[index].hasBeenPlayed) return;
+    final updated = _games[index].copyWith(hasBeenPlayed: true);
+    await _db.updateGame(updated);
+    _games[index] = updated;
+    notifyListeners();
+  }
+
+  /// Called on startup to retroactively mark games that already have sessions.
+  Future<void> autoMarkFromSessions(Iterable<String> gameIds) async {
+    final ids = gameIds.toSet();
+    bool changed = false;
+    for (int i = 0; i < _games.length; i++) {
+      if (!_games[i].hasBeenPlayed && ids.contains(_games[i].id)) {
+        final updated = _games[i].copyWith(hasBeenPlayed: true);
+        await _db.updateGame(updated);
+        _games[i] = updated;
+        changed = true;
+      }
+    }
+    if (changed) notifyListeners();
+  }
+
   Future<void> deleteGame(String id) async {
     await _db.deleteGame(id);
     _games.removeWhere((g) => g.id == id);

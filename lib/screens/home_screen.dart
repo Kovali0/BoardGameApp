@@ -20,9 +20,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GameProvider>().loadGames();
-      context.read<SessionProvider>().loadSessions();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final gameProvider = context.read<GameProvider>();
+      final sessionProvider = context.read<SessionProvider>();
+      await gameProvider.loadGames();
+      await sessionProvider.loadSessions();
+      await gameProvider.autoMarkFromSessions(
+        sessionProvider.sessions.map((s) => s.gameId),
+      );
     });
   }
 
