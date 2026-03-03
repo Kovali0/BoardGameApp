@@ -6,6 +6,25 @@ import '../../models/game_session.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/session_provider.dart';
 
+// ─── Filter helpers ────────────────────────────────────────────────────────────
+
+List<int> _years(List<GameSession> s) =>
+    s.map((x) => x.startTime.year).toSet().toList()..sort((a, b) => b.compareTo(a));
+
+List<int> _months(List<GameSession> s, int year) =>
+    s.where((x) => x.startTime.year == year)
+     .map((x) => x.startTime.month).toSet().toList()
+     ..sort((a, b) => b.compareTo(a));
+
+List<GameSession> _applyFilter(List<GameSession> all, int? year, int? month) {
+  if (year == null) return all;
+  final byYear = all.where((s) => s.startTime.year == year);
+  if (month == null) return byYear.toList();
+  return byYear.where((s) => s.startTime.month == month).toList();
+}
+
+const _kMonths = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
 
@@ -16,6 +35,8 @@ class StatisticsScreen extends StatefulWidget {
 class _StatisticsScreenState extends State<StatisticsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  int? _selectedYear;
+  int? _selectedMonth;
 
   @override
   void initState() {
@@ -29,15 +50,59 @@ class _StatisticsScreenState extends State<StatisticsScreen>
     super.dispose();
   }
 
+  void _showFilterSheet(BuildContext context, List<GameSession> allSessions) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _FilterSheet(
+        allSessions: allSessions,
+        initialYear: _selectedYear,
+        initialMonth: _selectedMonth,
+        onApply: (year, month) => setState(() {
+          _selectedYear = year;
+          _selectedMonth = month;
+        }),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final sessions = context.watch<SessionProvider>().sessions;
     final allGames = context.watch<GameProvider>().games;
+    final filteredSessions = _applyFilter(sessions, _selectedYear, _selectedMonth);
+    final filterActive = _selectedYear != null;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Useless statistics'),
         centerTitle: true,
+        actions: [
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.filter_list),
+                onPressed: () => _showFilterSheet(context, sessions),
+              ),
+              if (filterActive)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -50,7 +115,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          sessions.isEmpty
+          filteredSessions.isEmpty
               ? const Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -69,9 +134,9 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                     ],
                   ),
                 )
-              : _StatisticsContent(sessions: sessions),
-          _GamesStatsContent(sessions: sessions, allGames: allGames),
-          _PlayersStatsContent(sessions: sessions),
+              : _StatisticsContent(sessions: filteredSessions),
+          _GamesStatsContent(sessions: filteredSessions, allGames: allGames),
+          _PlayersStatsContent(sessions: filteredSessions),
         ],
       ),
     );
@@ -681,6 +746,108 @@ class _PlayerGameCard extends StatelessWidget {
             if (avgScore != null)
               _RecordRow(label: 'Avg score', value: '${avgScore.toStringAsFixed(1)} pts'),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Filter bottom sheet ───────────────────────────────────────────────────────
+
+class _FilterSheet extends StatefulWidget {
+  final List<GameSession> allSessions;
+  final int? initialYear;
+  final int? initialMonth;
+  final void Function(int? year, int? month) onApply;
+
+  const _FilterSheet({
+    required this.allSessions,
+    required this.initialYear,
+    required this.initialMonth,
+    required this.onApply,
+  });
+
+  @override
+  State<_FilterSheet> createState() => _FilterSheetState();
+}
+
+class _FilterSheetState extends State<_FilterSheet> {
+  int? _year;
+  int? _month;
+
+  @override
+  void initState() {
+    super.initState();
+    _year = widget.initialYear;
+    _month = widget.initialMonth;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final years = _years(widget.allSessions);
+    final months = _year == null ? <int>[] : _months(widget.allSessions, _year!);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Filter sessions',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          const Text('Year', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              FilterChip(
+                label: const Text('All'),
+                selected: _year == null,
+                onSelected: (_) => setState(() { _year = null; _month = null; }),
+              ),
+              for (final y in years)
+                FilterChip(
+                  label: Text('$y'),
+                  selected: _year == y,
+                  onSelected: (_) => setState(() { _year = y; _month = null; }),
+                ),
+            ],
+          ),
+          if (_year != null) ...[
+            const SizedBox(height: 12),
+            const Text('Month', style: TextStyle(color: Colors.grey, fontSize: 13)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                FilterChip(
+                  label: const Text('All'),
+                  selected: _month == null,
+                  onSelected: (_) => setState(() => _month = null),
+                ),
+                for (final m in months)
+                  FilterChip(
+                    label: Text(_kMonths[m]),
+                    selected: _month == m,
+                    onSelected: (_) => setState(() => _month = m),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () {
+                widget.onApply(_year, _month);
+                Navigator.pop(context);
+              },
+              child: const Text('Apply'),
+            ),
+          ),
         ],
       ),
     );
