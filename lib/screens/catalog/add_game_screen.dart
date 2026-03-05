@@ -147,111 +147,103 @@ class _AddGameScreenState extends State<AddGameScreen> {
         appBar: AppBar(
           title: Text(_isEditing ? 'Edit Game' : 'Add Game'),
         ),
-        body: Stack(
-          children: [
-            Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
+        body: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              if (!_isEditing) ...[
+                _BggSearchBar(
+                  controller: _searchController,
+                  searching: _searching,
+                  onChanged: _onSearchChanged,
+                  onClear: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchResults = [];
+                      _showResults = false;
+                      _searching = false;
+                    });
+                  },
+                ),
+                if (_showResults && _searchResults.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _SearchResultsList(
+                    results: _searchResults,
+                    onSelect: _selectGame,
+                  ),
+                ],
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+              ],
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Game Name *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.casino),
+                ),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Name is required' : null,
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.description),
+                ),
+                maxLines: 3,
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: 16),
+              Row(
                 children: [
-                  if (!_isEditing) ...[
-                    _BggSearchBar(
-                      controller: _searchController,
-                      searching: _searching,
-                      onChanged: _onSearchChanged,
-                      onClear: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchResults = [];
-                          _showResults = false;
-                          _searching = false;
-                        });
-                      },
+                  Expanded(
+                    child: _PlayerCountField(
+                      label: 'Min Players',
+                      value: _minPlayers,
+                      onChanged: (v) => setState(() => _minPlayers = v),
+                      min: 1,
+                      max: _maxPlayers,
                     ),
-                    const SizedBox(height: 16),
-                    const Divider(),
-                    const SizedBox(height: 8),
-                  ],
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Game Name *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.casino),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _PlayerCountField(
+                      label: 'Max Players',
+                      value: _maxPlayers,
+                      onChanged: (v) => setState(() => _maxPlayers = v),
+                      min: _minPlayers,
+                      max: 20,
                     ),
-                    validator: (v) =>
-                        v == null || v.trim().isEmpty ? 'Name is required' : null,
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _descController,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.description),
-                    ),
-                    maxLines: 3,
-                    textCapitalization: TextCapitalization.sentences,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _PlayerCountField(
-                          label: 'Min Players',
-                          value: _minPlayers,
-                          onChanged: (v) => setState(() => _minPlayers = v),
-                          min: 1,
-                          max: _maxPlayers,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _PlayerCountField(
-                          label: 'Max Players',
-                          value: _maxPlayers,
-                          onChanged: (v) => setState(() => _maxPlayers = v),
-                          min: _minPlayers,
-                          max: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _hintsController,
-                    decoration: const InputDecoration(
-                      labelText: 'Setup Hints',
-                      hintText:
-                          'e.g. 1. Place board in center\n2. Deal 5 cards each...',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.lightbulb_outline),
-                      alignLabelWithHint: true,
-                    ),
-                    maxLines: 6,
-                    textCapitalization: TextCapitalization.sentences,
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: _save,
-                    icon: const Icon(Icons.save),
-                    label: Text(_isEditing ? 'Save Changes' : 'Add Game'),
                   ),
                 ],
               ),
-            ),
-            if (_showResults && _searchResults.isNotEmpty)
-              Positioned(
-                top: 0,
-                left: 16,
-                right: 16,
-                child: _SearchResultsOverlay(
-                  results: _searchResults,
-                  onSelect: _selectGame,
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _hintsController,
+                decoration: const InputDecoration(
+                  labelText: 'Setup Hints',
+                  hintText: 'e.g. 1. Place board in center\n2. Deal 5 cards each...',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lightbulb_outline),
+                  alignLabelWithHint: true,
                 ),
+                maxLines: 6,
+                textCapitalization: TextCapitalization.sentences,
               ),
-          ],
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: _save,
+                icon: const Icon(Icons.save),
+                label: Text(_isEditing ? 'Save Changes' : 'Add Game'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -319,40 +311,153 @@ class _BggSearchBar extends StatelessWidget {
   }
 }
 
-class _SearchResultsOverlay extends StatelessWidget {
+class _SearchResultsList extends StatelessWidget {
   final List<BggSearchResult> results;
   final ValueChanged<BggSearchResult> onSelect;
 
-  const _SearchResultsOverlay({required this.results, required this.onSelect});
+  const _SearchResultsList({required this.results, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      elevation: 8,
-      borderRadius: BorderRadius.circular(8),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 280),
-        child: ListView.separated(
-          padding: EdgeInsets.zero,
-          shrinkWrap: true,
-          itemCount: results.length,
-          separatorBuilder: (context, index) => const Divider(height: 1),
-          itemBuilder: (context, i) {
-            final r = results[i];
-            return ListTile(
-              dense: true,
-              leading: const Icon(Icons.casino_outlined, size: 20),
-              title: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              trailing: r.year != null
-                  ? Text(
-                      '${r.year}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    )
-                  : null,
-              onTap: () => onSelect(r),
-            );
-          },
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          child: Text(
+            '${results.length} result${results.length == 1 ? '' : 's'} found',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
         ),
+        ...results.map((r) => _SearchResultCard(result: r, onTap: () => onSelect(r))),
+      ],
+    );
+  }
+}
+
+class _SearchResultCard extends StatelessWidget {
+  final BggSearchResult result;
+  final VoidCallback onTap;
+
+  const _SearchResultCard({required this.result, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasPlayers = result.minPlayers != null || result.maxPlayers != null;
+    final playersLabel = _buildPlayersLabel();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: theme.colorScheme.primaryContainer,
+                child: Icon(
+                  Icons.casino_outlined,
+                  size: 20,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      result.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (result.year != null || hasPlayers)
+                      const SizedBox(height: 4),
+                    if (result.year != null || hasPlayers)
+                      Row(
+                        children: [
+                          if (result.year != null) ...[
+                            _InfoChip(
+                              icon: Icons.calendar_today,
+                              label: '${result.year}',
+                            ),
+                          ],
+                          if (hasPlayers && result.year != null)
+                            const SizedBox(width: 6),
+                          if (hasPlayers)
+                            _InfoChip(
+                              icon: Icons.people_outline,
+                              label: playersLabel,
+                            ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: theme.colorScheme.outline,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _buildPlayersLabel() {
+    final min = result.minPlayers;
+    final max = result.maxPlayers;
+    if (min != null && max != null) {
+      return min == max ? '$min' : '$min–$max';
+    }
+    if (min != null) return '$min+';
+    if (max != null) return '≤$max';
+    return '';
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _InfoChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }
