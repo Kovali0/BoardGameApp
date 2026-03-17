@@ -29,6 +29,7 @@ class EndSessionScreen extends StatefulWidget {
 class _EndSessionScreenState extends State<EndSessionScreen> {
   late List<Map<String, dynamic>> _playerData;
   final _notesController = TextEditingController();
+  final _tiebreakerController = TextEditingController();
 
   String get _formattedDuration {
     final h = widget.durationSeconds ~/ 3600;
@@ -56,18 +57,36 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
   @override
   void dispose() {
     _notesController.dispose();
+    _tiebreakerController.dispose();
     for (final p in _playerData) {
       (p['scoreController'] as TextEditingController).dispose();
     }
     super.dispose();
   }
 
-  void _autoRank() {
+  bool get _hasTies {
+    final ranks = _playerData
+        .map((p) => p['rank'] as int)
+        .where((r) => r > 0)
+        .toList();
+    return ranks.length != ranks.toSet().length;
+  }
+
+  bool _playerIsTied(int rank) {
+    if (rank == 0) return false;
+    return _playerData.where((p) => (p['rank'] as int) == rank).length > 1;
+  }
+
+  void _readScores() {
     for (final p in _playerData) {
       final text =
           (p['scoreController'] as TextEditingController).text.trim();
       p['score'] = text.isEmpty ? null : int.tryParse(text);
     }
+  }
+
+  void _autoRank() {
+    _readScores();
     final sorted = List<Map<String, dynamic>>.from(_playerData)
       ..sort((a, b) {
         final sa = a['score'] as int?;
@@ -78,18 +97,72 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
         return sb.compareTo(sa);
       });
     setState(() {
+      // Players with equal scores share the same rank (true tie)
+      int rank = 1;
       for (int i = 0; i < sorted.length; i++) {
-        sorted[i]['rank'] = i + 1;
+        if (i > 0) {
+          final prev = sorted[i - 1]['score'] as int?;
+          final curr = sorted[i]['score'] as int?;
+          if (prev != curr) rank = i + 1;
+        }
+        sorted[i]['rank'] = rank;
       }
     });
   }
 
+  /// Assigns ranks to players who have none, based on score (desc).
+  /// Respects any ranks that were manually set.
+  void _fillRemainingRanks() {
+    final taken = _playerData
+        .where((p) => (p['rank'] as int) > 0)
+        .map((p) => p['rank'] as int)
+        .toSet();
+
+    final unranked = _playerData
+        .where((p) => (p['rank'] as int) == 0)
+        .toList()
+      ..sort((a, b) {
+        final sa = a['score'] as int?;
+        final sb = b['score'] as int?;
+        if (sa == null && sb == null) return 0;
+        if (sa == null) return 1;
+        if (sb == null) return -1;
+        return sb.compareTo(sa);
+      });
+
+    if (unranked.isEmpty) return;
+
+    final available = List.generate(_playerData.length, (i) => i + 1)
+        .where((r) => !taken.contains(r))
+        .toList();
+
+    // Assign available slots; players with equal scores share a slot
+    int slot = 0;
+    for (int i = 0; i < unranked.length && slot < available.length; i++) {
+      unranked[i]['rank'] = available[slot];
+      // If next player has same score, give same rank (don't advance slot)
+      if (i + 1 < unranked.length) {
+        final curr = unranked[i]['score'] as int?;
+        final next = unranked[i + 1]['score'] as int?;
+        if (curr == null || next == null || curr != next) slot++;
+      }
+    }
+  }
+
   Future<void> _save() async {
-    for (final p in _playerData) {
-      final text =
-          (p['scoreController'] as TextEditingController).text.trim();
-      p['score'] = text.isEmpty ? null : int.tryParse(text);
-      if ((p['rank'] as int) == 0) p['rank'] = 1;
+    _readScores();
+    _fillRemainingRanks();
+
+    // Build combined notes: tiebreaker first, then general notes
+    final tieNote = _tiebreakerController.text.trim();
+    final generalNote = _notesController.text.trim();
+    String? combinedNotes;
+    if (tieNote.isNotEmpty && generalNote.isNotEmpty) {
+      combinedNotes = '[Tiebreaker: $tieNote]\n$generalNote';
+    } else if (tieNote.isNotEmpty) {
+      combinedNotes = '[Tiebreaker: $tieNote]';
+    } else if (generalNote.isNotEmpty) {
+      combinedNotes = generalNote;
     }
 
     await context.read<SessionProvider>().saveSession(
@@ -106,9 +179,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                     'startedGame': p['startedGame'],
                   })
               .toList(),
-          notes: _notesController.text.trim().isEmpty
-              ? null
-              : _notesController.text.trim(),
+          notes: combinedNotes,
           isFromCollection: widget.isFromCollection,
         );
 
@@ -130,6 +201,9 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasTies = _hasTies;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Game Over!'),
@@ -144,10 +218,8 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _SummaryItem(
-                      icon: Icons.casino, label: widget.game.name),
-                  _SummaryItem(
-                      icon: Icons.timer, label: _formattedDuration),
+                  _SummaryItem(icon: Icons.casino, label: widget.game.name),
+                  _SummaryItem(icon: Icons.timer, label: _formattedDuration),
                   _SummaryItem(
                       icon: Icons.group,
                       label: '${widget.players.length} players'),
@@ -159,18 +231,26 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Results',
-                  style: Theme.of(context).textTheme.titleMedium),
+              Text('Results', style: theme.textTheme.titleMedium),
               TextButton(
                 onPressed: _autoRank,
                 child: const Text('Auto Rank by Score'),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Tip: assign the same place to two players to mark a draw.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.outline),
+            ),
+          ),
           ...List.generate(_playerData.length, (i) {
             final p = _playerData[i];
             final currentRank = p['rank'] as int;
+            final tied = _playerIsTied(currentRank);
+
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: Padding(
@@ -190,15 +270,44 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                       onChanged: (rank) =>
                           setState(() => p['rank'] = rank ?? 0),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
                       flex: 2,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(p['name'] as String,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold)),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  p['name'] as String,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (tied) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.tertiaryContainer,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'TIE',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: theme
+                                          .colorScheme.onTertiaryContainer,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                           if (p['startedGame'] as bool)
                             const Text('started',
                                 style: TextStyle(
@@ -217,6 +326,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                         ),
                         keyboardType: TextInputType.number,
                         textAlign: TextAlign.center,
+                        onChanged: (_) => setState(() {}),
                       ),
                     ),
                   ],
@@ -225,6 +335,42 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
             );
           }),
           const SizedBox(height: 8),
+          // Tiebreaker note — only visible when at least two players share a rank
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            child: hasTies
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.balance,
+                              size: 16, color: theme.colorScheme.tertiary),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Tiebreaker',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                                color: theme.colorScheme.tertiary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _tiebreakerController,
+                        decoration: const InputDecoration(
+                          hintText:
+                              'e.g. "A and B tied on points — B won by card count"',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.edit_note),
+                        ),
+                        maxLines: 2,
+                        textCapitalization: TextCapitalization.sentences,
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
           TextFormField(
             controller: _notesController,
             decoration: const InputDecoration(
@@ -239,8 +385,8 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
             onPressed: _save,
             icon: const Icon(Icons.save),
             label: const Text('Save Session'),
-            style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(52)),
+            style:
+                FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
           ),
         ],
       ),
