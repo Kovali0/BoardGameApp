@@ -7,6 +7,7 @@ class BoardGame {
   final String? setupHints;
   final DateTime createdAt;
   final bool hasBeenPlayed;
+  final String? imageUrl;
 
   const BoardGame({
     required this.id,
@@ -17,6 +18,7 @@ class BoardGame {
     this.setupHints,
     required this.createdAt,
     this.hasBeenPlayed = false,
+    this.imageUrl,
   });
 
   Map<String, dynamic> toMap() => {
@@ -28,6 +30,7 @@ class BoardGame {
         'setup_hints': setupHints,
         'created_at': createdAt.toIso8601String(),
         'has_been_played': hasBeenPlayed ? 1 : 0,
+        'image_url': imageUrl,
       };
 
   factory BoardGame.fromMap(Map<String, dynamic> map) => BoardGame(
@@ -39,6 +42,7 @@ class BoardGame {
         setupHints: map['setup_hints'] as String?,
         createdAt: DateTime.parse(map['created_at'] as String),
         hasBeenPlayed: (map['has_been_played'] as int? ?? 0) == 1,
+        imageUrl: map['image_url'] as String?,
       );
 
   BoardGame copyWith({
@@ -48,6 +52,7 @@ class BoardGame {
     int? maxPlayers,
     String? setupHints,
     bool? hasBeenPlayed,
+    String? imageUrl,
   }) =>
       BoardGame(
         id: id,
@@ -58,5 +63,6 @@ class BoardGame {
         setupHints: setupHints ?? this.setupHints,
         createdAt: createdAt,
         hasBeenPlayed: hasBeenPlayed ?? this.hasBeenPlayed,
+        imageUrl: imageUrl ?? this.imageUrl,
       );
 }

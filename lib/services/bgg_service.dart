@@ -8,6 +8,7 @@ class BggSearchResult {
   final int? year;
   final int? minPlayers;
   final int? maxPlayers;
+  final String? imageUrl;
 
   const BggSearchResult({
     required this.id,
@@ -15,6 +16,7 @@ class BggSearchResult {
     this.year,
     this.minPlayers,
     this.maxPlayers,
+    this.imageUrl,
   });
 }
 
@@ -124,12 +126,17 @@ class BggService {
       final minPlayers = minStr != null ? int.tryParse(minStr) : null;
       final maxPlayers = maxStr != null ? int.tryParse(maxStr) : null;
 
+      final rawImage =
+          item.findAllElements('image').firstOrNull?.innerText.trim();
+      final imageUrl = _normalizeImageUrl(rawImage);
+
       results.add(BggSearchResult(
         id: id,
         name: name,
         year: year,
         minPlayers: minPlayers,
         maxPlayers: maxPlayers,
+        imageUrl: imageUrl,
       ));
     }
 
@@ -198,7 +205,7 @@ class BggService {
         .replaceAll('&ndash;', '–')
         .trim();
 
-    final imageUrl =
+    final rawImage =
         item.findAllElements('image').firstOrNull?.innerText.trim();
 
     return BggGameDetail(
@@ -208,7 +215,15 @@ class BggService {
       minPlayers: minPlayers,
       maxPlayers: maxPlayers,
       yearPublished: year,
-      imageUrl: (imageUrl == null || imageUrl.isEmpty) ? null : imageUrl,
+      imageUrl: _normalizeImageUrl(rawImage),
     );
+  }
+
+  /// BGG returns protocol-relative URLs like "//cf.geekdo-images.com/...".
+  /// Prepend https: when needed.
+  static String? _normalizeImageUrl(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    if (raw.startsWith('//')) return 'https:$raw';
+    return raw;
   }
 }

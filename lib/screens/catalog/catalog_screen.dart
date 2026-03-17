@@ -62,7 +62,11 @@ class _GameCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: ListTile(
         leading: CircleAvatar(
-          child: Text(game.name[0].toUpperCase()),
+          backgroundImage:
+              game.imageUrl != null ? NetworkImage(game.imageUrl!) : null,
+          child: game.imageUrl == null
+              ? Text(game.name[0].toUpperCase())
+              : null,
         ),
         title: Text(game.name,
             style: const TextStyle(fontWeight: FontWeight.bold)),

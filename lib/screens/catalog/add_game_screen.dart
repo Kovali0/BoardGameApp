@@ -28,6 +28,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
   bool _showResults = false;
   bool _searchedWithNoResults = false;
   Timer? _debounce;
+  String? _imageUrl;
 
   bool get _isEditing => widget.game != null;
 
@@ -103,6 +104,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
         if (result.maxPlayers != null) {
           _maxPlayers = result.maxPlayers!.clamp(_minPlayers, 20);
         }
+        _imageUrl = result.imageUrl;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -141,6 +143,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
         minPlayers: _minPlayers,
         maxPlayers: _maxPlayers,
         setupHints: hints.isEmpty ? null : hints,
+        imageUrl: _imageUrl,
       );
     }
     if (mounted) Navigator.pop(context);

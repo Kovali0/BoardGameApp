@@ -21,7 +21,7 @@ class DatabaseHelper {
     final path = join(dbPath, 'board_game_manager.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -38,6 +38,11 @@ class DatabaseHelper {
         'ALTER TABLE games ADD COLUMN has_been_played INTEGER NOT NULL DEFAULT 0',
       );
     }
+    if (oldVersion < 4) {
+      await db.execute(
+        'ALTER TABLE games ADD COLUMN image_url TEXT',
+      );
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -50,7 +55,8 @@ class DatabaseHelper {
         max_players INTEGER NOT NULL,
         setup_hints TEXT,
         created_at TEXT NOT NULL,
-        has_been_played INTEGER NOT NULL DEFAULT 0
+        has_been_played INTEGER NOT NULL DEFAULT 0,
+        image_url TEXT
       )
     ''');
 
