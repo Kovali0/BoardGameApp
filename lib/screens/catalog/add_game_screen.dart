@@ -21,6 +21,11 @@ class _AddGameScreenState extends State<AddGameScreen> {
   late int _minPlayers;
   late int _maxPlayers;
 
+  late final TextEditingController _minPlaytimeController;
+  late final TextEditingController _maxPlaytimeController;
+  late final TextEditingController _bggRatingController;
+  late final TextEditingController _complexityController;
+
   final _bgg = BggService();
   final _searchController = TextEditingController();
   List<BggSearchResult> _searchResults = [];
@@ -30,23 +35,28 @@ class _AddGameScreenState extends State<AddGameScreen> {
   Timer? _debounce;
   String? _imageUrl;
   String? _thumbnailUrl;
-  int? _minPlaytime;
-  int? _maxPlaytime;
-  double? _bggRating;
-  double? _complexity;
 
   bool get _isEditing => widget.game != null;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.game?.name ?? '');
-    _descController =
-        TextEditingController(text: widget.game?.description ?? '');
-    _hintsController =
-        TextEditingController(text: widget.game?.setupHints ?? '');
-    _minPlayers = widget.game?.minPlayers ?? 2;
-    _maxPlayers = widget.game?.maxPlayers ?? 4;
+    final g = widget.game;
+    _nameController = TextEditingController(text: g?.name ?? '');
+    _descController = TextEditingController(text: g?.description ?? '');
+    _hintsController = TextEditingController(text: g?.setupHints ?? '');
+    _minPlayers = g?.minPlayers ?? 2;
+    _maxPlayers = g?.maxPlayers ?? 4;
+    _minPlaytimeController =
+        TextEditingController(text: g?.minPlaytime?.toString() ?? '');
+    _maxPlaytimeController =
+        TextEditingController(text: g?.maxPlaytime?.toString() ?? '');
+    _bggRatingController =
+        TextEditingController(text: g?.bggRating?.toStringAsFixed(1) ?? '');
+    _complexityController =
+        TextEditingController(text: g?.complexity?.toStringAsFixed(1) ?? '');
+    _imageUrl = g?.imageUrl;
+    _thumbnailUrl = g?.thumbnailUrl;
   }
 
   @override
@@ -55,6 +65,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
     _descController.dispose();
     _hintsController.dispose();
     _searchController.dispose();
+    _minPlaytimeController.dispose();
+    _maxPlaytimeController.dispose();
+    _bggRatingController.dispose();
+    _complexityController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -111,10 +125,14 @@ class _AddGameScreenState extends State<AddGameScreen> {
         }
         _imageUrl = result.imageUrl;
         _thumbnailUrl = result.thumbnailUrl;
-        _minPlaytime = result.minPlaytime;
-        _maxPlaytime = result.maxPlaytime;
-        _bggRating = result.bggRating;
-        _complexity = result.complexity;
+        _minPlaytimeController.text =
+            result.minPlaytime?.toString() ?? '';
+        _maxPlaytimeController.text =
+            result.maxPlaytime?.toString() ?? '';
+        _bggRatingController.text =
+            result.bggRating?.toStringAsFixed(1) ?? '';
+        _complexityController.text =
+            result.complexity?.toStringAsFixed(1) ?? '';
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -137,6 +155,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
     final provider = context.read<GameProvider>();
     final desc = _descController.text.trim();
     final hints = _hintsController.text.trim();
+    final minPlaytime = int.tryParse(_minPlaytimeController.text.trim());
+    final maxPlaytime = int.tryParse(_maxPlaytimeController.text.trim());
+    final bggRating = double.tryParse(_bggRatingController.text.trim());
+    final complexity = double.tryParse(_complexityController.text.trim());
 
     if (_isEditing) {
       await provider.updateGame(widget.game!.copyWith(
@@ -145,6 +167,12 @@ class _AddGameScreenState extends State<AddGameScreen> {
         minPlayers: _minPlayers,
         maxPlayers: _maxPlayers,
         setupHints: hints.isEmpty ? null : hints,
+        imageUrl: _imageUrl,
+        thumbnailUrl: _thumbnailUrl,
+        minPlaytime: minPlaytime,
+        maxPlaytime: maxPlaytime,
+        bggRating: bggRating,
+        complexity: complexity,
       ));
     } else {
       await provider.addGame(
@@ -155,10 +183,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
         setupHints: hints.isEmpty ? null : hints,
         imageUrl: _imageUrl,
         thumbnailUrl: _thumbnailUrl,
-        minPlaytime: _minPlaytime,
-        maxPlaytime: _maxPlaytime,
-        bggRating: _bggRating,
-        complexity: _complexity,
+        minPlaytime: minPlaytime,
+        maxPlaytime: maxPlaytime,
+        bggRating: bggRating,
+        complexity: complexity,
       );
     }
     if (mounted) Navigator.pop(context);
@@ -249,6 +277,86 @@ class _AddGameScreenState extends State<AddGameScreen> {
                       onChanged: (v) => setState(() => _maxPlayers = v),
                       min: _minPlayers,
                       max: 20,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _minPlaytimeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Min Playtime (min)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.timer_outlined),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        final n = int.tryParse(v.trim());
+                        if (n == null || n < 1) return 'Invalid';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _maxPlaytimeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Max Playtime (min)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.timer_outlined),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        final n = int.tryParse(v.trim());
+                        if (n == null || n < 1) return 'Invalid';
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _bggRatingController,
+                      decoration: const InputDecoration(
+                        labelText: 'BGG Rating (1–10)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.star_outline),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        final n = double.tryParse(v.trim());
+                        if (n == null || n < 1 || n > 10) return '1–10';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _complexityController,
+                      decoration: const InputDecoration(
+                        labelText: 'Complexity (1–5)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.psychology_outlined),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        final n = double.tryParse(v.trim());
+                        if (n == null || n < 1 || n > 5) return '1–5';
+                        return null;
+                      },
                     ),
                   ),
                 ],
