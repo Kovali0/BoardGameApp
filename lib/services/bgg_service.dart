@@ -9,6 +9,11 @@ class BggSearchResult {
   final int? minPlayers;
   final int? maxPlayers;
   final String? imageUrl;
+  final String? thumbnailUrl;
+  final int? minPlaytime;
+  final int? maxPlaytime;
+  final double? bggRating;
+  final double? complexity;
 
   const BggSearchResult({
     required this.id,
@@ -17,6 +22,11 @@ class BggSearchResult {
     this.minPlayers,
     this.maxPlayers,
     this.imageUrl,
+    this.thumbnailUrl,
+    this.minPlaytime,
+    this.maxPlaytime,
+    this.bggRating,
+    this.complexity,
   });
 }
 
@@ -28,6 +38,11 @@ class BggGameDetail {
   final int maxPlayers;
   final int? yearPublished;
   final String? imageUrl;
+  final String? thumbnailUrl;
+  final int? minPlaytime;
+  final int? maxPlaytime;
+  final double? bggRating;
+  final double? complexity;
 
   const BggGameDetail({
     required this.id,
@@ -37,6 +52,11 @@ class BggGameDetail {
     required this.maxPlayers,
     this.yearPublished,
     this.imageUrl,
+    this.thumbnailUrl,
+    this.minPlaytime,
+    this.maxPlaytime,
+    this.bggRating,
+    this.complexity,
   });
 }
 
@@ -78,10 +98,11 @@ class BggService {
         .where((id) => id != null)
         .join(',');
 
-    // Step 2: Fetch details (player counts, year) for all IDs in one call
+    // Step 2: Fetch details for all IDs in one call (stats=1 for rating + complexity)
     var detailUri = Uri.parse('$_baseUrl/thing').replace(queryParameters: {
       'id': ids,
       'type': 'boardgame',
+      'stats': '1',
     });
 
     var detailResponse = await http
@@ -126,9 +147,26 @@ class BggService {
       final minPlayers = minStr != null ? int.tryParse(minStr) : null;
       final maxPlayers = maxStr != null ? int.tryParse(maxStr) : null;
 
+      final minTimeStr =
+          item.findAllElements('minplaytime').firstOrNull?.getAttribute('value');
+      final maxTimeStr =
+          item.findAllElements('maxplaytime').firstOrNull?.getAttribute('value');
+      final minPlaytime = minTimeStr != null ? int.tryParse(minTimeStr) : null;
+      final maxPlaytime = maxTimeStr != null ? int.tryParse(maxTimeStr) : null;
+
       final rawImage =
           item.findAllElements('image').firstOrNull?.innerText.trim();
-      final imageUrl = _normalizeImageUrl(rawImage);
+      final rawThumb =
+          item.findAllElements('thumbnail').firstOrNull?.innerText.trim();
+
+      final ratings = item.findAllElements('ratings').firstOrNull;
+      final ratingStr =
+          ratings?.findAllElements('average').firstOrNull?.getAttribute('value');
+      final complexityStr =
+          ratings?.findAllElements('averageweight').firstOrNull?.getAttribute('value');
+      final bggRating = ratingStr != null ? double.tryParse(ratingStr) : null;
+      final complexity =
+          complexityStr != null ? double.tryParse(complexityStr) : null;
 
       results.add(BggSearchResult(
         id: id,
@@ -136,7 +174,12 @@ class BggService {
         year: year,
         minPlayers: minPlayers,
         maxPlayers: maxPlayers,
-        imageUrl: imageUrl,
+        imageUrl: _normalizeImageUrl(rawImage),
+        thumbnailUrl: _normalizeImageUrl(rawThumb),
+        minPlaytime: minPlaytime,
+        maxPlaytime: maxPlaytime,
+        bggRating: (bggRating != null && bggRating > 0) ? bggRating : null,
+        complexity: (complexity != null && complexity > 0) ? complexity : null,
       ));
     }
 
@@ -159,6 +202,7 @@ class BggService {
     final uri = Uri.parse('$_baseUrl/thing').replace(queryParameters: {
       'id': id,
       'type': 'boardgame',
+      'stats': '1',
     });
 
     var response = await http
@@ -197,6 +241,13 @@ class BggService {
     final minPlayers = (minStr != null ? int.tryParse(minStr) : null) ?? 2;
     final maxPlayers = (maxStr != null ? int.tryParse(maxStr) : null) ?? 4;
 
+    final minTimeStr =
+        item.findAllElements('minplaytime').firstOrNull?.getAttribute('value');
+    final maxTimeStr =
+        item.findAllElements('maxplaytime').firstOrNull?.getAttribute('value');
+    final minPlaytime = minTimeStr != null ? int.tryParse(minTimeStr) : null;
+    final maxPlaytime = maxTimeStr != null ? int.tryParse(maxTimeStr) : null;
+
     final descRaw =
         item.findAllElements('description').firstOrNull?.innerText;
     final desc = descRaw
@@ -207,6 +258,17 @@ class BggService {
 
     final rawImage =
         item.findAllElements('image').firstOrNull?.innerText.trim();
+    final rawThumb =
+        item.findAllElements('thumbnail').firstOrNull?.innerText.trim();
+
+    final ratings = item.findAllElements('ratings').firstOrNull;
+    final ratingStr =
+        ratings?.findAllElements('average').firstOrNull?.getAttribute('value');
+    final complexityStr =
+        ratings?.findAllElements('averageweight').firstOrNull?.getAttribute('value');
+    final bggRating = ratingStr != null ? double.tryParse(ratingStr) : null;
+    final complexity =
+        complexityStr != null ? double.tryParse(complexityStr) : null;
 
     return BggGameDetail(
       id: id,
@@ -216,6 +278,11 @@ class BggService {
       maxPlayers: maxPlayers,
       yearPublished: year,
       imageUrl: _normalizeImageUrl(rawImage),
+      thumbnailUrl: _normalizeImageUrl(rawThumb),
+      minPlaytime: minPlaytime,
+      maxPlaytime: maxPlaytime,
+      bggRating: (bggRating != null && bggRating > 0) ? bggRating : null,
+      complexity: (complexity != null && complexity > 0) ? complexity : null,
     );
   }
 

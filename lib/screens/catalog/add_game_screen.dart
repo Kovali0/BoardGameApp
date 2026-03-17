@@ -29,6 +29,11 @@ class _AddGameScreenState extends State<AddGameScreen> {
   bool _searchedWithNoResults = false;
   Timer? _debounce;
   String? _imageUrl;
+  String? _thumbnailUrl;
+  int? _minPlaytime;
+  int? _maxPlaytime;
+  double? _bggRating;
+  double? _complexity;
 
   bool get _isEditing => widget.game != null;
 
@@ -105,6 +110,11 @@ class _AddGameScreenState extends State<AddGameScreen> {
           _maxPlayers = result.maxPlayers!.clamp(_minPlayers, 20);
         }
         _imageUrl = result.imageUrl;
+        _thumbnailUrl = result.thumbnailUrl;
+        _minPlaytime = result.minPlaytime;
+        _maxPlaytime = result.maxPlaytime;
+        _bggRating = result.bggRating;
+        _complexity = result.complexity;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -144,6 +154,11 @@ class _AddGameScreenState extends State<AddGameScreen> {
         maxPlayers: _maxPlayers,
         setupHints: hints.isEmpty ? null : hints,
         imageUrl: _imageUrl,
+        thumbnailUrl: _thumbnailUrl,
+        minPlaytime: _minPlaytime,
+        maxPlaytime: _maxPlaytime,
+        bggRating: _bggRating,
+        complexity: _complexity,
       );
     }
     if (mounted) Navigator.pop(context);

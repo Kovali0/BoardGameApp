@@ -59,6 +59,44 @@ class GameDetailScreen extends StatelessWidget {
                           style: Theme.of(context).textTheme.bodyLarge),
                     ],
                   ),
+                  if (game.minPlaytime != null || game.maxPlaytime != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.timer_outlined),
+                        const SizedBox(width: 8),
+                        Text(
+                          _playtimeLabel(game.minPlaytime, game.maxPlaytime),
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (game.bggRating != null || game.complexity != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        if (game.bggRating != null) ...[
+                          const Icon(Icons.star_outline, color: Colors.amber),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${game.bggRating!.toStringAsFixed(1)} / 10',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                        ],
+                        if (game.bggRating != null && game.complexity != null)
+                          const SizedBox(width: 16),
+                        if (game.complexity != null) ...[
+                          const Icon(Icons.psychology_outlined),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Weight ${game.complexity!.toStringAsFixed(1)} / 5',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                   if (game.description != null &&
                       game.description!.isNotEmpty) ...[
                     const SizedBox(height: 12),
@@ -133,6 +171,15 @@ class GameDetailScreen extends StatelessWidget {
         label: const Text('Play Now'),
       ),
     );
+  }
+
+  String _playtimeLabel(int? min, int? max) {
+    if (min != null && max != null) {
+      return min == max ? '$min min' : '$min–$max min';
+    }
+    if (min != null) return '$min+ min';
+    if (max != null) return 'up to $max min';
+    return '';
   }
 
   void _confirmDelete(BuildContext context) {

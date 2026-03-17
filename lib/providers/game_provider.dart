@@ -22,6 +22,11 @@ class GameProvider with ChangeNotifier {
     required int maxPlayers,
     String? setupHints,
     String? imageUrl,
+    String? thumbnailUrl,
+    int? minPlaytime,
+    int? maxPlaytime,
+    double? bggRating,
+    double? complexity,
   }) async {
     final game = BoardGame(
       id: _uuid.v4(),
@@ -33,6 +38,11 @@ class GameProvider with ChangeNotifier {
       createdAt: DateTime.now(),
       hasBeenPlayed: false,
       imageUrl: imageUrl,
+      thumbnailUrl: thumbnailUrl,
+      minPlaytime: minPlaytime,
+      maxPlaytime: maxPlaytime,
+      bggRating: bggRating,
+      complexity: complexity,
     );
     await _db.insertGame(game);
     _games.add(game);
