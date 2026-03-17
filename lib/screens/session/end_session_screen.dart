@@ -290,18 +290,17 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                                 const SizedBox(width: 6),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 1),
+                                      horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: theme.colorScheme.tertiaryContainer,
+                                    color: Colors.orange,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
-                                  child: Text(
+                                  child: const Text(
                                     'TIE',
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
-                                      color: theme
-                                          .colorScheme.onTertiaryContainer,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ),
@@ -336,41 +335,31 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
           }),
           const SizedBox(height: 8),
           // Tiebreaker note — only visible when at least two players share a rank
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            child: hasTies
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.balance,
-                              size: 16, color: theme.colorScheme.tertiary),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Tiebreaker',
-                            style: theme.textTheme.labelLarge?.copyWith(
-                                color: theme.colorScheme.tertiary),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: _tiebreakerController,
-                        decoration: const InputDecoration(
-                          hintText:
-                              'e.g. "A and B tied on points — B won by card count"',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.edit_note),
-                        ),
-                        maxLines: 2,
-                        textCapitalization: TextCapitalization.sentences,
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  )
-                : const SizedBox.shrink(),
-          ),
+          if (hasTies) ...[
+            Row(
+              children: [
+                const Icon(Icons.balance, size: 16, color: Colors.orange),
+                const SizedBox(width: 6),
+                Text(
+                  'Tiebreaker reason',
+                  style: theme.textTheme.labelLarge
+                      ?.copyWith(color: Colors.orange),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _tiebreakerController,
+              decoration: const InputDecoration(
+                hintText: 'e.g. "A and B tied — B won by card count"',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.edit_note),
+              ),
+              maxLines: 2,
+              textCapitalization: TextCapitalization.sentences,
+            ),
+            const SizedBox(height: 8),
+          ],
           TextFormField(
             controller: _notesController,
             decoration: const InputDecoration(
