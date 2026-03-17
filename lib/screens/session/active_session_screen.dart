@@ -24,15 +24,17 @@ class ActiveSessionScreen extends StatefulWidget {
 class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   late final DateTime _startTime;
   late Timer _timer;
-  int _seconds = 0;
   bool _isPaused = false;
+  DateTime? _pausedAt;
+  int _totalPausedSeconds = 0;
 
   @override
   void initState() {
     super.initState();
     _startTime = DateTime.now();
+    // Timer only drives UI redraws — elapsed time is always derived from wall clock.
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!_isPaused) setState(() => _seconds++);
+      if (!_isPaused) setState(() {});
     });
   }
 
@@ -42,11 +44,33 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
     super.dispose();
   }
 
+  int get _elapsedSeconds {
+    final base = (_isPaused ? _pausedAt! : DateTime.now())
+        .difference(_startTime)
+        .inSeconds;
+    return base - _totalPausedSeconds;
+  }
+
   String get _formatted {
-    final h = _seconds ~/ 3600;
-    final m = (_seconds % 3600) ~/ 60;
-    final s = _seconds % 60;
+    final secs = _elapsedSeconds;
+    final h = secs ~/ 3600;
+    final m = (secs % 3600) ~/ 60;
+    final s = secs % 60;
     return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  void _togglePause() {
+    setState(() {
+      if (_isPaused) {
+        _totalPausedSeconds +=
+            DateTime.now().difference(_pausedAt!).inSeconds;
+        _pausedAt = null;
+        _isPaused = false;
+      } else {
+        _pausedAt = DateTime.now();
+        _isPaused = true;
+      }
+    });
   }
 
   void _showAbandonDialog() {
@@ -79,7 +103,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
           players: widget.players,
           starterName: widget.starterName,
           startTime: _startTime,
-          durationSeconds: _seconds,
+          durationSeconds: _elapsedSeconds,
           isFromCollection: widget.isFromCollection,
         ),
       ),
@@ -152,11 +176,8 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () =>
-                          setState(() => _isPaused = !_isPaused),
-                      icon: Icon(_isPaused
-                          ? Icons.play_arrow
-                          : Icons.pause),
+                      onPressed: _togglePause,
+                      icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause),
                       label: Text(_isPaused ? 'Resume' : 'Pause'),
                     ),
                   ),
