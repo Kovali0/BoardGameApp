@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:xml/xml.dart' as xml;
 
 class BggSearchResult {
-  final String id; // Wikidata Q-id
+  final String id; // BGG numeric ID
   final String name;
   final int? year;
   final int? minPlayers;
@@ -38,12 +38,12 @@ class BggGameDetail {
   });
 }
 
-/// Searches Wikidata for board games (free, no auth required).
 class BggService {
-  static const _sparqlUrl = 'https://query.wikidata.org/sparql';
+  static const _bggToken = '7fb814ad-3f61-4c01-a3fb-761c06d906ef';
+  static const _baseUrl = 'https://boardgamegeek.com/xmlapi2';
 
   static const _headers = {
-    'Accept': 'application/sparql-results+json',
+    'Authorization': 'Bearer $_bggToken',
     'User-Agent': 'MBGS-BoardGameApp/1.0 (personal board game tracker)',
   };
 
@@ -51,75 +51,89 @@ class BggService {
     if (query.trim().isEmpty) return [];
     debugPrint('[BGG] searchGames: "$query"');
 
-    final escaped = query.toLowerCase().replaceAll('"', '\\"');
+    // Step 1: Search by name — returns IDs and basic names
+    final searchUri = Uri.parse('$_baseUrl/search').replace(queryParameters: {
+      'query': query.trim(),
+      'type': 'boardgame',
+    });
 
-    final sparql = '''
-SELECT DISTINCT ?item ?itemLabel ?p1872 ?p1873 ?year WHERE {
-  ?item wdt:P31 wd:Q131436 .
-  ?item rdfs:label ?itemLabel .
-  FILTER(lang(?itemLabel) = "en")
-  FILTER(contains(lcase(?itemLabel), "$escaped"))
-  OPTIONAL { ?item wdt:P1872 ?p1872 }
-  OPTIONAL { ?item wdt:P1873 ?p1873 }
-  OPTIONAL { ?item wdt:P571 ?year }
-}
-ORDER BY ?itemLabel
-LIMIT 20
-''';
+    final searchResponse = await http
+        .get(searchUri, headers: _headers)
+        .timeout(const Duration(seconds: 20));
 
-    final uri = Uri.parse(_sparqlUrl)
-        .replace(queryParameters: {'query': sparql, 'format': 'json'});
+    debugPrint('[BGG] search status=${searchResponse.statusCode}');
+    if (searchResponse.statusCode != 200) return [];
 
-    debugPrint('[Wikidata] GET $uri');
+    final searchDoc = xml.XmlDocument.parse(searchResponse.body);
+    final items = searchDoc.findAllElements('item').toList();
+    debugPrint('[BGG] search raw hits: ${items.length}');
+    if (items.isEmpty) return [];
 
-    final response = await http
-        .get(uri, headers: _headers)
-        .timeout(const Duration(seconds: 15));
+    // Take top 20 results for detail lookup
+    final ids = items
+        .take(20)
+        .map((e) => e.getAttribute('id'))
+        .where((id) => id != null)
+        .join(',');
 
-    debugPrint('[Wikidata] status=${response.statusCode}');
+    // Step 2: Fetch details (player counts, year) for all IDs in one call
+    var detailUri = Uri.parse('$_baseUrl/thing').replace(queryParameters: {
+      'id': ids,
+      'type': 'boardgame',
+    });
 
-    if (response.statusCode != 200) return [];
+    var detailResponse = await http
+        .get(detailUri, headers: _headers)
+        .timeout(const Duration(seconds: 20));
 
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final bindings = (data['results']?['bindings'] as List?) ?? [];
+    // BGG may return 202 (queued) — retry until ready
+    while (detailResponse.statusCode == 202) {
+      debugPrint('[BGG] 202 queued, retrying...');
+      await Future.delayed(const Duration(seconds: 2));
+      detailResponse = await http
+          .get(detailUri, headers: _headers)
+          .timeout(const Duration(seconds: 20));
+    }
+
+    debugPrint('[BGG] detail status=${detailResponse.statusCode}');
+    if (detailResponse.statusCode != 200) return [];
+
+    final detailDoc = xml.XmlDocument.parse(detailResponse.body);
+    final detailItems = detailDoc.findAllElements('item');
 
     final results = <BggSearchResult>[];
-    for (final b in bindings) {
-      final qid = (b['item']?['value'] as String?)?.split('/').last;
-      final name = b['itemLabel']?['value'] as String?;
-      if (qid == null || name == null || name.isEmpty) continue;
+    for (final item in detailItems) {
+      final id = item.getAttribute('id');
+      if (id == null) continue;
 
-      final yearStr = b['year']?['value'] as String?;
-      int? year;
-      if (yearStr != null) {
-        // Wikidata dates: "1995-01-01T00:00:00Z"
-        year = int.tryParse(yearStr.substring(0, 4));
-      }
+      final primaryName = item
+          .findAllElements('name')
+          .where((e) => e.getAttribute('type') == 'primary')
+          .firstOrNull;
+      final name = primaryName?.getAttribute('value');
+      if (name == null || name.isEmpty) continue;
 
-      // Wikidata community enters P1872=actual_min, P1873=actual_max
-      // (opposite to property labels) — we take min/max of both to be safe
-      final v1 = double.tryParse(b['p1872']?['value'] ?? '')?.toInt();
-      final v2 = double.tryParse(b['p1873']?['value'] ?? '')?.toInt();
-      int? minP, maxP;
-      if (v1 != null && v2 != null) {
-        minP = v1 < v2 ? v1 : v2;
-        maxP = v1 > v2 ? v1 : v2;
-      } else if (v1 != null) {
-        minP = v1;
-      } else if (v2 != null) {
-        maxP = v2;
-      }
+      final yearStr =
+          item.findAllElements('yearpublished').firstOrNull?.getAttribute('value');
+      final year = yearStr != null ? int.tryParse(yearStr) : null;
+
+      final minStr =
+          item.findAllElements('minplayers').firstOrNull?.getAttribute('value');
+      final maxStr =
+          item.findAllElements('maxplayers').firstOrNull?.getAttribute('value');
+      final minPlayers = minStr != null ? int.tryParse(minStr) : null;
+      final maxPlayers = maxStr != null ? int.tryParse(maxStr) : null;
 
       results.add(BggSearchResult(
-        id: qid,
+        id: id,
         name: name,
         year: year,
-        minPlayers: minP,
-        maxPlayers: maxP,
+        minPlayers: minPlayers,
+        maxPlayers: maxPlayers,
       ));
     }
 
-    // Exact/prefix matches first
+    // Exact/prefix matches first, then alphabetical
     final q = query.toLowerCase();
     results.sort((a, b) {
       final aName = a.name.toLowerCase();
@@ -130,72 +144,71 @@ LIMIT 20
       return aName.compareTo(bName);
     });
 
-    debugPrint('[Wikidata] found ${results.length} results');
+    debugPrint('[BGG] found ${results.length} board games');
     return results;
   }
 
-  /// Returns a [BggGameDetail] from a search result, or null if data is missing.
   Future<BggGameDetail?> getGameDetail(String id) async {
-    // id is the Wikidata Q-id (e.g. "Q107835072")
-    // We already have player counts in the search result;
-    // this call is for getting a short description.
-    final sparql = '''
-SELECT ?itemLabel ?desc ?p1872 ?p1873 ?year WHERE {
-  VALUES ?item { wd:$id }
-  ?item rdfs:label ?itemLabel FILTER(lang(?itemLabel) = "en")
-  OPTIONAL { ?item schema:description ?desc FILTER(lang(?desc) = "en") }
-  OPTIONAL { ?item wdt:P1872 ?p1872 }
-  OPTIONAL { ?item wdt:P1873 ?p1873 }
-  OPTIONAL { ?item wdt:P571 ?year }
-}
-LIMIT 1
-''';
+    final uri = Uri.parse('$_baseUrl/thing').replace(queryParameters: {
+      'id': id,
+      'type': 'boardgame',
+    });
 
-    final uri = Uri.parse(_sparqlUrl)
-        .replace(queryParameters: {'query': sparql, 'format': 'json'});
-
-    final response = await http
+    var response = await http
         .get(uri, headers: _headers)
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 15));
+
+    while (response.statusCode == 202) {
+      debugPrint('[BGG] 202 queued, retrying...');
+      await Future.delayed(const Duration(seconds: 2));
+      response = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 15));
+    }
 
     if (response.statusCode != 200) return null;
 
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final bindings = (data['results']?['bindings'] as List?) ?? [];
-    if (bindings.isEmpty) return null;
+    final doc = xml.XmlDocument.parse(response.body);
+    final item = doc.findAllElements('item').firstOrNull;
+    if (item == null) return null;
 
-    final b = bindings.first as Map<String, dynamic>;
-    final name = b['itemLabel']?['value'] as String?;
+    final primaryName = item
+        .findAllElements('name')
+        .where((e) => e.getAttribute('type') == 'primary')
+        .firstOrNull;
+    final name = primaryName?.getAttribute('value');
     if (name == null) return null;
 
-    final desc = b['desc']?['value'] as String?;
+    final yearStr =
+        item.findAllElements('yearpublished').firstOrNull?.getAttribute('value');
+    final year = yearStr != null ? int.tryParse(yearStr) : null;
 
-    final yearStr = b['year']?['value'] as String?;
-    int? year;
-    if (yearStr != null) year = int.tryParse(yearStr.substring(0, 4));
+    final minStr =
+        item.findAllElements('minplayers').firstOrNull?.getAttribute('value');
+    final maxStr =
+        item.findAllElements('maxplayers').firstOrNull?.getAttribute('value');
+    final minPlayers = (minStr != null ? int.tryParse(minStr) : null) ?? 2;
+    final maxPlayers = (maxStr != null ? int.tryParse(maxStr) : null) ?? 4;
 
-    final v1 = double.tryParse(b['p1872']?['value'] ?? '')?.toInt();
-    final v2 = double.tryParse(b['p1873']?['value'] ?? '')?.toInt();
-    int minP = 2, maxP = 4;
-    if (v1 != null && v2 != null) {
-      minP = v1 < v2 ? v1 : v2;
-      maxP = v1 > v2 ? v1 : v2;
-    } else if (v1 != null) {
-      minP = v1;
-      maxP = v1;
-    } else if (v2 != null) {
-      minP = v2;
-      maxP = v2;
-    }
+    final descRaw =
+        item.findAllElements('description').firstOrNull?.innerText;
+    final desc = descRaw
+        ?.replaceAll('&#10;', '\n')
+        .replaceAll('&mdash;', '—')
+        .replaceAll('&ndash;', '–')
+        .trim();
+
+    final imageUrl =
+        item.findAllElements('image').firstOrNull?.innerText.trim();
 
     return BggGameDetail(
       id: id,
       name: name,
-      description: desc,
-      minPlayers: minP,
-      maxPlayers: maxP,
+      description: (desc == null || desc.isEmpty) ? null : desc,
+      minPlayers: minPlayers,
+      maxPlayers: maxPlayers,
       yearPublished: year,
-      imageUrl: null, // Wikidata has images but complex to retrieve
+      imageUrl: (imageUrl == null || imageUrl.isEmpty) ? null : imageUrl,
     );
   }
 }

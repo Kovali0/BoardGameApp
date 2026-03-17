@@ -26,6 +26,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
   List<BggSearchResult> _searchResults = [];
   bool _searching = false;
   bool _showResults = false;
+  bool _searchedWithNoResults = false;
   Timer? _debounce;
 
   bool get _isEditing => widget.game != null;
@@ -59,10 +60,14 @@ class _AddGameScreenState extends State<AddGameScreen> {
         _searchResults = [];
         _showResults = false;
         _searching = false;
+        _searchedWithNoResults = false;
       });
       return;
     }
-    setState(() => _searching = true);
+    setState(() {
+      _searching = true;
+      _searchedWithNoResults = false;
+    });
     _debounce = Timer(const Duration(milliseconds: 600), () async {
       try {
         final results = await _bgg.searchGames(value.trim());
@@ -70,7 +75,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
           setState(() {
             _searchResults = results;
             _searching = false;
-            _showResults = true;
+            _showResults = results.isNotEmpty;
+            _searchedWithNoResults = results.isEmpty;
           });
         }
       } catch (e, st) {
@@ -83,6 +89,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
   Future<void> _selectGame(BggSearchResult result) async {
     setState(() {
       _showResults = false;
+      _searchedWithNoResults = false;
       _searchController.clear();
     });
 
@@ -99,7 +106,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Filled from Wikidata: ${result.name}'),
+          content: Text('Filled from BGG: ${result.name}'),
           backgroundColor: Colors.green.shade700,
           duration: const Duration(seconds: 2),
         ),
@@ -163,6 +170,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
                       _searchResults = [];
                       _showResults = false;
                       _searching = false;
+                      _searchedWithNoResults = false;
                     });
                   },
                 ),
@@ -172,6 +180,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
                     results: _searchResults,
                     onSelect: _selectGame,
                   ),
+                ],
+                if (_searchedWithNoResults) ...[
+                  const SizedBox(height: 8),
+                  _NotFoundBanner(),
                 ],
                 const SizedBox(height: 16),
                 const Divider(),
@@ -286,7 +298,7 @@ class _BggSearchBar extends StatelessWidget {
           controller: controller,
           onChanged: onChanged,
           decoration: InputDecoration(
-            hintText: 'Type to search BGG database...',
+            hintText: 'Search by name (English or native language)...',
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.travel_explore),
             suffixIcon: controller.text.isNotEmpty
@@ -455,6 +467,35 @@ class _InfoChip extends StatelessWidget {
             label,
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotFoundBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.search_off, size: 18, color: theme.colorScheme.outline),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Not found in database — fill the details manually below.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
