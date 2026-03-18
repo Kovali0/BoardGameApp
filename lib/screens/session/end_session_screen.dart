@@ -31,6 +31,10 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
   final _notesController = TextEditingController();
   final _tiebreakerController = TextEditingController();
 
+  // For each base rank that has a tie, stores the user-ordered list of player names.
+  // First in list = wins the tiebreak (gets the lower rank number).
+  final Map<int, List<String>> _tieOrder = {};
+
   String get _formattedDuration {
     final h = widget.durationSeconds ~/ 3600;
     final m = (widget.durationSeconds % 3600) ~/ 60;
@@ -47,7 +51,6 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
         .map((name) => {
               'name': name,
               'score': null as int?,
-              'rank': 0,
               'startedGame': name == widget.starterName,
               'scoreController': TextEditingController(),
             })
@@ -64,96 +67,88 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
     super.dispose();
   }
 
-  bool get _hasTies {
-    final ranks = _playerData
-        .map((p) => p['rank'] as int)
-        .where((r) => r > 0)
-        .toList();
-    return ranks.length != ranks.toSet().length;
-  }
-
-  bool _playerIsTied(int rank) {
-    if (rank == 0) return false;
-    return _playerData.where((p) => (p['rank'] as int) == rank).length > 1;
-  }
-
   void _readScores() {
     for (final p in _playerData) {
-      final text =
-          (p['scoreController'] as TextEditingController).text.trim();
+      final text = (p['scoreController'] as TextEditingController).text.trim();
       p['score'] = text.isEmpty ? null : int.tryParse(text);
     }
   }
 
-  void _autoRank() {
-    _readScores();
-    final sorted = List<Map<String, dynamic>>.from(_playerData)
-      ..sort((a, b) {
-        final sa = a['score'] as int?;
-        final sb = b['score'] as int?;
-        if (sa == null && sb == null) return 0;
-        if (sa == null) return 1;
-        if (sb == null) return -1;
-        return sb.compareTo(sa);
-      });
-    setState(() {
-      // Players with equal scores share the same rank (true tie)
-      int rank = 1;
-      for (int i = 0; i < sorted.length; i++) {
-        if (i > 0) {
-          final prev = sorted[i - 1]['score'] as int?;
-          final curr = sorted[i]['score'] as int?;
-          if (prev != curr) rank = i + 1;
-        }
-        sorted[i]['rank'] = rank;
-      }
-    });
+  /// Base ranks: equal scores share the same rank. Unscored players get rank 0.
+  Map<String, int> _computeBaseRanks() {
+    final scored = _playerData.where((p) => p['score'] != null).toList()
+      ..sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
+
+    final result = <String, int>{};
+    for (final p in _playerData) {
+      if (p['score'] == null) result[p['name'] as String] = 0;
+    }
+
+    int rank = 1;
+    for (int i = 0; i < scored.length; i++) {
+      if (i > 0 && scored[i]['score'] != scored[i - 1]['score']) rank = i + 1;
+      result[scored[i]['name'] as String] = rank;
+    }
+    return result;
   }
 
-  /// Assigns ranks to players who have none, based on score (desc).
-  /// Respects any ranks that were manually set.
-  void _fillRemainingRanks() {
-    final taken = _playerData
-        .where((p) => (p['rank'] as int) > 0)
-        .map((p) => p['rank'] as int)
-        .toSet();
+  /// Tie groups: only groups with 2+ players. Uses _playerData order for stability.
+  Map<int, List<String>> _computeTieGroups(Map<String, int> baseRanks) {
+    final groups = <int, List<String>>{};
+    for (final p in _playerData) {
+      final name = p['name'] as String;
+      final rank = baseRanks[name];
+      if (rank == null || rank == 0) continue;
+      groups.putIfAbsent(rank, () => []).add(name);
+    }
+    return Map.fromEntries(groups.entries.where((e) => e.value.length > 1));
+  }
 
-    final unranked = _playerData
-        .where((p) => (p['rank'] as int) == 0)
-        .toList()
-      ..sort((a, b) {
-        final sa = a['score'] as int?;
-        final sb = b['score'] as int?;
-        if (sa == null && sb == null) return 0;
-        if (sa == null) return 1;
-        if (sb == null) return -1;
-        return sb.compareTo(sa);
-      });
+  /// Final ranks after applying tiebreaker ordering.
+  Map<String, int> _computeFinalRanks() {
+    final base = _computeBaseRanks();
+    final tieGroups = _computeTieGroups(base);
+    final result = Map<String, int>.from(base);
 
-    if (unranked.isEmpty) return;
-
-    final available = List.generate(_playerData.length, (i) => i + 1)
-        .where((r) => !taken.contains(r))
-        .toList();
-
-    // Assign available slots; players with equal scores share a slot
-    int slot = 0;
-    for (int i = 0; i < unranked.length && slot < available.length; i++) {
-      unranked[i]['rank'] = available[slot];
-      // If next player has same score, give same rank (don't advance slot)
-      if (i + 1 < unranked.length) {
-        final curr = unranked[i]['score'] as int?;
-        final next = unranked[i + 1]['score'] as int?;
-        if (curr == null || next == null || curr != next) slot++;
+    for (final entry in tieGroups.entries) {
+      final baseRank = entry.key;
+      final order = _tieOrder[baseRank] ?? entry.value;
+      for (int i = 0; i < order.length; i++) {
+        result[order[i]] = baseRank + i;
       }
     }
+    return result;
+  }
+
+  void _onScoreChanged() {
+    _readScores();
+    final base = _computeBaseRanks();
+    final tieGroups = _computeTieGroups(base);
+
+    setState(() {
+      // Sync _tieOrder: add new groups, update membership, remove resolved ones.
+      for (final entry in tieGroups.entries) {
+        final rank = entry.key;
+        final newPlayers = entry.value.toSet();
+        if (_tieOrder.containsKey(rank)) {
+          // Preserve existing order but sync membership.
+          final updated = _tieOrder[rank]!.where(newPlayers.contains).toList();
+          for (final p in newPlayers) {
+            if (!updated.contains(p)) updated.add(p);
+          }
+          _tieOrder[rank] = updated;
+        } else {
+          _tieOrder[rank] = List.from(entry.value);
+        }
+      }
+      _tieOrder.removeWhere((rank, _) => !tieGroups.containsKey(rank));
+    });
   }
 
   Future<void> _save() async {
     _readScores();
-    _fillRemainingRanks();
+    final finalRanks = _computeFinalRanks();
 
-    // Build combined notes: tiebreaker first, then general notes
     final tieNote = _tiebreakerController.text.trim();
     final generalNote = _notesController.text.trim();
     String? combinedNotes;
@@ -175,7 +170,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
               .map((p) => {
                     'name': p['name'],
                     'score': p['score'],
-                    'rank': p['rank'],
+                    'rank': finalRanks[p['name'] as String] ?? 0,
                     'startedGame': p['startedGame'],
                   })
               .toList(),
@@ -186,7 +181,6 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
     if (mounted) {
       await context.read<GameProvider>().markAsPlayed(widget.game.id);
     }
-
     if (mounted) {
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
@@ -202,7 +196,10 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasTies = _hasTies;
+    final finalRanks = _computeFinalRanks();
+    final base = _computeBaseRanks();
+    final tieGroups = _computeTieGroups(base);
+    final hasTies = tieGroups.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -212,6 +209,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Summary card
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -228,28 +226,21 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Results', style: theme.textTheme.titleMedium),
-              TextButton(
-                onPressed: _autoRank,
-                child: const Text('Auto Rank by Score'),
-              ),
-            ],
+          Text('Results', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Enter scores — ranks update automatically.',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.outline),
           ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Tip: assign the same place to two players to mark a draw.',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.outline),
-            ),
-          ),
+          const SizedBox(height: 8),
+
+          // Player score cards
           ...List.generate(_playerData.length, (i) {
             final p = _playerData[i];
-            final currentRank = p['rank'] as int;
-            final tied = _playerIsTied(currentRank);
+            final name = p['name'] as String;
+            final rank = finalRanks[name] ?? 0;
+            final inTieGroup = tieGroups.values.any((g) => g.contains(name));
 
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
@@ -257,18 +248,39 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    DropdownButton<int>(
-                      value: currentRank == 0 ? null : currentRank,
-                      hint: const Text('#'),
-                      items: List.generate(
-                        widget.players.length,
-                        (r) => DropdownMenuItem(
-                          value: r + 1,
-                          child: Text(_ordinal(r + 1)),
-                        ),
-                      ),
-                      onChanged: (rank) =>
-                          setState(() => p['rank'] = rank ?? 0),
+                    // Auto rank badge
+                    SizedBox(
+                      width: 52,
+                      child: rank == 0
+                          ? const Center(
+                              child: Text('—',
+                                  style: TextStyle(
+                                      color: Colors.grey, fontSize: 18)))
+                          : Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: inTieGroup
+                                      ? Colors.orange
+                                      : rank == 1
+                                          ? Colors.amber
+                                          : theme.colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  _ordinal(rank),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: inTieGroup || rank == 1
+                                        ? Colors.white
+                                        : theme
+                                            .colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ),
+                            ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -276,36 +288,10 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  p['name'] as String,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (tied) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Text(
-                                    'TIE',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
+                          Text(
+                            name,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           if (p['startedGame'] as bool)
                             const Text('started',
@@ -323,9 +309,10 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                           isDense: true,
                           border: OutlineInputBorder(),
                         ),
-                        keyboardType: TextInputType.number,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(signed: true),
                         textAlign: TextAlign.center,
-                        onChanged: (_) => setState(() {}),
+                        onChanged: (_) => _onScoreChanged(),
                       ),
                     ),
                   ],
@@ -333,33 +320,60 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
               ),
             );
           }),
-          const SizedBox(height: 8),
-          // Tiebreaker note — only visible when at least two players share a rank
+
+          // Tie resolution section
           if (hasTies) ...[
+            const SizedBox(height: 8),
             Row(
               children: [
                 const Icon(Icons.balance, size: 16, color: Colors.orange),
                 const SizedBox(width: 6),
                 Text(
-                  'Tiebreaker reason',
-                  style: theme.textTheme.labelLarge
+                  'Resolve Ties',
+                  style: theme.textTheme.titleSmall
                       ?.copyWith(color: Colors.orange),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
+            Text(
+              'Drag to set the final order within each tied group.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.outline),
+            ),
+            const SizedBox(height: 8),
+            ...tieGroups.entries.map((entry) {
+              final baseRank = entry.key;
+              final ordered = _tieOrder[baseRank] ?? entry.value;
+              return _TieGroup(
+                baseRank: baseRank,
+                orderedPlayers: ordered,
+                ordinal: _ordinal,
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    final list = List<String>.from(ordered);
+                    final item = list.removeAt(oldIndex);
+                    list.insert(newIndex, item);
+                    _tieOrder[baseRank] = list;
+                  });
+                },
+              );
+            }),
+            const SizedBox(height: 4),
             TextField(
               controller: _tiebreakerController,
               decoration: const InputDecoration(
+                labelText: 'Tiebreaker reason (optional)',
                 hintText: 'e.g. "A and B tied — B won by card count"',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.edit_note),
+                prefixIcon: Icon(Icons.edit_note, color: Colors.orange),
               ),
               maxLines: 2,
               textCapitalization: TextCapitalization.sentences,
             ),
             const SizedBox(height: 8),
           ],
+
           TextFormField(
             controller: _notesController,
             decoration: const InputDecoration(
@@ -374,11 +388,95 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
             onPressed: _save,
             icon: const Icon(Icons.save),
             label: const Text('Save Session'),
-            style:
-                FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+            style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52)),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TieGroup extends StatelessWidget {
+  final int baseRank;
+  final List<String> orderedPlayers;
+  final String Function(int) ordinal;
+  final void Function(int oldIndex, int newIndex) onReorder;
+
+  const _TieGroup({
+    required this.baseRank,
+    required this.orderedPlayers,
+    required this.ordinal,
+    required this.onReorder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text(
+            'Tied at ${ordinal(baseRank)} place — set final order:',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: Colors.orange,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        ...List.generate(orderedPlayers.length, (i) {
+          final name = orderedPlayers[i];
+          final isFirst = i == 0;
+          final isLast = i == orderedPlayers.length - 1;
+          return Card(
+            margin: const EdgeInsets.only(bottom: 4),
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: Colors.orange,
+                    child: Text(
+                      ordinal(baseRank + i),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(name,
+                        style: const TextStyle(fontWeight: FontWeight.w500)),
+                  ),
+                  // Up button
+                  IconButton(
+                    icon: const Icon(Icons.arrow_upward, size: 20),
+                    onPressed: isFirst ? null : () => onReorder(i, i - 1),
+                    color: Colors.orange,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  ),
+                  // Down button
+                  IconButton(
+                    icon: const Icon(Icons.arrow_downward, size: 20),
+                    onPressed: isLast ? null : () => onReorder(i, i + 1),
+                    color: Colors.orange,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+        const SizedBox(height: 8),
+      ],
     );
   }
 }
