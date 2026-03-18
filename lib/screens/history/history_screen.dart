@@ -234,9 +234,9 @@ class _SessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final winner = session.players.isNotEmpty
-        ? session.players.first.playerName
-        : '?';
+    final winners =
+        session.players.where((p) => p.rank == 1).map((p) => p.playerName).join(' & ');
+    final winner = winners.isNotEmpty ? winners : '?';
     final date = session.startTime;
     final dateStr =
         '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
