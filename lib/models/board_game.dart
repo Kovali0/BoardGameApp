@@ -13,6 +13,8 @@ class BoardGame {
   final int? maxPlaytime;
   final double? bggRating;
   final double? complexity;
+  final double? myRating;
+  final double? myWeight;
 
   const BoardGame({
     required this.id,
@@ -29,6 +31,8 @@ class BoardGame {
     this.maxPlaytime,
     this.bggRating,
     this.complexity,
+    this.myRating,
+    this.myWeight,
   });
 
   Map<String, dynamic> toMap() => {
@@ -46,6 +50,8 @@ class BoardGame {
         'max_playtime': maxPlaytime,
         'bgg_rating': bggRating,
         'complexity': complexity,
+        'my_rating': myRating,
+        'my_weight': myWeight,
       };
 
   factory BoardGame.fromMap(Map<String, dynamic> map) => BoardGame(
@@ -63,6 +69,8 @@ class BoardGame {
         maxPlaytime: map['max_playtime'] as int?,
         bggRating: map['bgg_rating'] as double?,
         complexity: map['complexity'] as double?,
+        myRating: map['my_rating'] as double?,
+        myWeight: map['my_weight'] as double?,
       );
 
   BoardGame copyWith({
@@ -78,6 +86,8 @@ class BoardGame {
     int? maxPlaytime,
     double? bggRating,
     double? complexity,
+    double? myRating,
+    double? myWeight,
   }) =>
       BoardGame(
         id: id,
@@ -94,5 +104,7 @@ class BoardGame {
         maxPlaytime: maxPlaytime ?? this.maxPlaytime,
         bggRating: bggRating ?? this.bggRating,
         complexity: complexity ?? this.complexity,
+        myRating: myRating ?? this.myRating,
+        myWeight: myWeight ?? this.myWeight,
       );
 }

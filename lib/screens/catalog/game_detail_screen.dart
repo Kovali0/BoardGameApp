@@ -76,23 +76,52 @@ class GameDetailScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
+                        Text('BGG',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(color: Theme.of(context).colorScheme.outline)),
+                        const SizedBox(width: 8),
                         if (game.bggRating != null) ...[
-                          const Icon(Icons.star_outline, color: Colors.amber),
+                          const Icon(Icons.star_outline, color: Colors.amber, size: 18),
                           const SizedBox(width: 4),
-                          Text(
-                            '${game.bggRating!.toStringAsFixed(1)} / 10',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
+                          Text('${game.bggRating!.toStringAsFixed(1)} / 10',
+                              style: Theme.of(context).textTheme.bodyLarge),
                         ],
                         if (game.bggRating != null && game.complexity != null)
                           const SizedBox(width: 16),
                         if (game.complexity != null) ...[
-                          const Icon(Icons.psychology_outlined),
+                          const Icon(Icons.psychology_outlined, size: 18),
                           const SizedBox(width: 4),
-                          Text(
-                            'Weight ${game.complexity!.toStringAsFixed(1)} / 5',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
+                          Text('${game.complexity!.toStringAsFixed(1)} / 5',
+                              style: Theme.of(context).textTheme.bodyLarge),
+                        ],
+                      ],
+                    ),
+                  ],
+                  if (game.myRating != null || game.myWeight != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text('Mine',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(color: Theme.of(context).colorScheme.primary)),
+                        const SizedBox(width: 8),
+                        if (game.myRating != null) ...[
+                          Icon(Icons.star, color: Theme.of(context).colorScheme.primary, size: 18),
+                          const SizedBox(width: 4),
+                          Text('${game.myRating!.toStringAsFixed(1)} / 10',
+                              style: Theme.of(context).textTheme.bodyLarge),
+                        ],
+                        if (game.myRating != null && game.myWeight != null)
+                          const SizedBox(width: 16),
+                        if (game.myWeight != null) ...[
+                          Icon(Icons.psychology, color: Theme.of(context).colorScheme.primary, size: 18),
+                          const SizedBox(width: 4),
+                          Text('${game.myWeight!.toStringAsFixed(1)} / 5',
+                              style: Theme.of(context).textTheme.bodyLarge),
                         ],
                       ],
                     ),

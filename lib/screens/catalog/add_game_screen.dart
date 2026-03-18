@@ -25,6 +25,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
   late final TextEditingController _maxPlaytimeController;
   late final TextEditingController _bggRatingController;
   late final TextEditingController _complexityController;
+  late final TextEditingController _myRatingController;
+  late final TextEditingController _myWeightController;
 
   final _bgg = BggService();
   final _searchController = TextEditingController();
@@ -55,6 +57,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
         TextEditingController(text: g?.bggRating?.toStringAsFixed(1) ?? '');
     _complexityController =
         TextEditingController(text: g?.complexity?.toStringAsFixed(1) ?? '');
+    _myRatingController =
+        TextEditingController(text: g?.myRating?.toStringAsFixed(1) ?? '');
+    _myWeightController =
+        TextEditingController(text: g?.myWeight?.toStringAsFixed(1) ?? '');
     _imageUrl = g?.imageUrl;
     _thumbnailUrl = g?.thumbnailUrl;
   }
@@ -69,6 +75,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
     _maxPlaytimeController.dispose();
     _bggRatingController.dispose();
     _complexityController.dispose();
+    _myRatingController.dispose();
+    _myWeightController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -159,6 +167,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
     final maxPlaytime = int.tryParse(_maxPlaytimeController.text.trim());
     final bggRating = double.tryParse(_bggRatingController.text.trim());
     final complexity = double.tryParse(_complexityController.text.trim());
+    final myRating = double.tryParse(_myRatingController.text.trim());
+    final myWeight = double.tryParse(_myWeightController.text.trim());
 
     if (_isEditing) {
       await provider.updateGame(widget.game!.copyWith(
@@ -173,6 +183,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
         maxPlaytime: maxPlaytime,
         bggRating: bggRating,
         complexity: complexity,
+        myRating: myRating,
+        myWeight: myWeight,
       ));
     } else {
       await provider.addGame(
@@ -187,6 +199,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
         maxPlaytime: maxPlaytime,
         bggRating: bggRating,
         complexity: complexity,
+        myRating: myRating,
+        myWeight: myWeight,
       );
     }
     if (mounted) Navigator.pop(context);
@@ -322,6 +336,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+              Text('BGG', style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Theme.of(context).colorScheme.outline)),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
@@ -346,9 +362,51 @@ class _AddGameScreenState extends State<AddGameScreen> {
                     child: TextFormField(
                       controller: _complexityController,
                       decoration: const InputDecoration(
-                        labelText: 'Complexity (1–5)',
+                        labelText: 'BGG Weight (1–5)',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.psychology_outlined),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        final n = double.tryParse(v.trim());
+                        if (n == null || n < 1 || n > 5) return '1–5';
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text('My Notes', style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Theme.of(context).colorScheme.primary)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _myRatingController,
+                      decoration: const InputDecoration(
+                        labelText: 'My Rating (1–10)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.star),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        final n = double.tryParse(v.trim());
+                        if (n == null || n < 1 || n > 10) return '1–10';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _myWeightController,
+                      decoration: const InputDecoration(
+                        labelText: 'My Weight (1–5)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.psychology),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (v) {

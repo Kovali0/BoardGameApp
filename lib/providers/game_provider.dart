@@ -27,6 +27,8 @@ class GameProvider with ChangeNotifier {
     int? maxPlaytime,
     double? bggRating,
     double? complexity,
+    double? myRating,
+    double? myWeight,
   }) async {
     final game = BoardGame(
       id: _uuid.v4(),
@@ -43,6 +45,8 @@ class GameProvider with ChangeNotifier {
       maxPlaytime: maxPlaytime,
       bggRating: bggRating,
       complexity: complexity,
+      myRating: myRating,
+      myWeight: myWeight,
     );
     await _db.insertGame(game);
     _games.add(game);
