@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/session_provider.dart';
+import '../../providers/game_provider.dart';
 import '../../models/game_session.dart';
 import 'session_detail_screen.dart';
 
@@ -241,13 +242,20 @@ class _SessionCard extends StatelessWidget {
     final dateStr =
         '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
 
+    final game = context
+        .watch<GameProvider>()
+        .games
+        .where((g) => g.id == session.gameId)
+        .firstOrNull;
+    final imageUrl = game?.thumbnailUrl ?? game?.imageUrl;
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor:
-              Theme.of(context).colorScheme.primaryContainer,
-          child: const Icon(Icons.emoji_events),
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+          child: imageUrl == null ? const Icon(Icons.emoji_events) : null,
         ),
         title: Text(session.gameName,
             style: const TextStyle(fontWeight: FontWeight.bold)),
