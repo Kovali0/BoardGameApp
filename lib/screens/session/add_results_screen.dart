@@ -25,8 +25,10 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
 
   final List<TextEditingController> _nameControllers = [];
   final List<TextEditingController> _scoreControllers = [];
-  List<int> _ranks = [];
 
+  // key = base rank, value = ordered list of player indices in that tie group
+  final Map<int, List<int>> _tieOrder = {};
+  final _tiebreakerController = TextEditingController();
   final _notesController = TextEditingController();
 
   @override
@@ -42,13 +44,10 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     _guestNameController.dispose();
     _hoursController.dispose();
     _minutesController.dispose();
+    _tiebreakerController.dispose();
     _notesController.dispose();
-    for (final c in _nameControllers) {
-      c.dispose();
-    }
-    for (final c in _scoreControllers) {
-      c.dispose();
-    }
+    for (final c in _nameControllers) c.dispose();
+    for (final c in _scoreControllers) c.dispose();
     super.dispose();
   }
 
@@ -56,7 +55,8 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     setState(() {
       _nameControllers.add(TextEditingController());
       _scoreControllers.add(TextEditingController());
-      _ranks.add(0);
+      _tieOrder.clear(); // indices may shift, rebuild from scratch
+      _syncTieOrder();
     });
   }
 
@@ -67,30 +67,90 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
       _scoreControllers[index].dispose();
       _nameControllers.removeAt(index);
       _scoreControllers.removeAt(index);
-      _ranks.removeAt(index);
+      _tieOrder.clear(); // indices shifted, rebuild from scratch
+      _syncTieOrder();
     });
   }
 
-  void _autoRank() {
-    final indexed = List.generate(_nameControllers.length, (i) {
+  /// Base ranks: equal scores share rank, unscored players get 0.
+  List<int> _computeBaseRanks() {
+    final n = _nameControllers.length;
+    final scores = List<int?>.generate(n, (i) {
       final text = _scoreControllers[i].text.trim();
-      return (index: i, score: text.isEmpty ? null : int.tryParse(text));
+      return text.isEmpty ? null : int.tryParse(text);
     });
-    final sorted = List.of(indexed)
+
+    final indices = List.generate(n, (i) => i)
       ..sort((a, b) {
-        if (a.score == null && b.score == null) return 0;
-        if (a.score == null) return 1;
-        if (b.score == null) return -1;
-        return b.score!.compareTo(a.score!);
+        final sa = scores[a], sb = scores[b];
+        if (sa == null && sb == null) return 0;
+        if (sa == null) return 1;
+        if (sb == null) return -1;
+        return sb.compareTo(sa);
       });
-    setState(() {
-      final newRanks = List.filled(_nameControllers.length, 0);
-      for (int i = 0; i < sorted.length; i++) {
-        newRanks[sorted[i].index] = i + 1;
+
+    final result = List.filled(n, 0);
+    int rank = 1;
+    for (int i = 0; i < indices.length; i++) {
+      final idx = indices[i];
+      if (scores[idx] == null) continue;
+      if (i > 0) {
+        final prevIdx = indices[i - 1];
+        if (scores[prevIdx] != null && scores[idx] != scores[prevIdx]) rank = i + 1;
       }
-      _ranks = newRanks;
-    });
+      result[idx] = rank;
+    }
+    return result;
   }
+
+  /// Tie groups: baseRank → [player indices] for groups with 2+ players.
+  Map<int, List<int>> _computeTieGroups(List<int> baseRanks) {
+    final groups = <int, List<int>>{};
+    for (int i = 0; i < baseRanks.length; i++) {
+      final r = baseRanks[i];
+      if (r == 0) continue;
+      groups.putIfAbsent(r, () => []).add(i);
+    }
+    return Map.fromEntries(groups.entries.where((e) => e.value.length > 1));
+  }
+
+  /// Final ranks after applying tiebreaker ordering.
+  List<int> _computeFinalRanks() {
+    final base = _computeBaseRanks();
+    final groups = _computeTieGroups(base);
+    final result = List<int>.from(base);
+
+    for (final entry in groups.entries) {
+      final baseRank = entry.key;
+      final order = _tieOrder[baseRank] ?? entry.value;
+      for (int i = 0; i < order.length; i++) {
+        result[order[i]] = baseRank + i;
+      }
+    }
+    return result;
+  }
+
+  void _syncTieOrder() {
+    final base = _computeBaseRanks();
+    final groups = _computeTieGroups(base);
+
+    _tieOrder.removeWhere((rank, _) => !groups.containsKey(rank));
+    for (final entry in groups.entries) {
+      final rank = entry.key;
+      final newIndices = entry.value.toSet();
+      if (_tieOrder.containsKey(rank)) {
+        final updated = _tieOrder[rank]!.where(newIndices.contains).toList();
+        for (final idx in newIndices) {
+          if (!updated.contains(idx)) updated.add(idx);
+        }
+        _tieOrder[rank] = updated;
+      } else {
+        _tieOrder[rank] = List.from(entry.value);
+      }
+    }
+  }
+
+  void _onScoreChanged() => setState(() => _syncTieOrder());
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -117,10 +177,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     BoardGame? game;
     if (_isGuestGame) {
       final name = _guestNameController.text.trim();
-      if (name.isEmpty) {
-        _snack('Enter a game name');
-        return;
-      }
+      if (name.isEmpty) { _snack('Enter a game name'); return; }
       game = BoardGame(
         id: const Uuid().v4(),
         name: name,
@@ -129,10 +186,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
         createdAt: DateTime.now(),
       );
     } else {
-      if (_selectedGame == null) {
-        _snack('Please select a game');
-        return;
-      }
+      if (_selectedGame == null) { _snack('Please select a game'); return; }
       game = _selectedGame!;
     }
 
@@ -140,12 +194,10 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     final hours = int.tryParse(_hoursController.text.trim()) ?? 0;
     final minutes = int.tryParse(_minutesController.text.trim()) ?? 0;
     final totalSeconds = hours * 3600 + minutes * 60;
-    if (totalSeconds <= 0) {
-      _snack('Duration must be at least 1 minute');
-      return;
-    }
+    if (totalSeconds <= 0) { _snack('Duration must be at least 1 minute'); return; }
 
-    // Resolve players
+    // Resolve players with final ranks
+    final finalRanks = _computeFinalRanks();
     final players = <Map<String, dynamic>>[];
     for (int i = 0; i < _nameControllers.length; i++) {
       final name = _nameControllers[i].text.trim();
@@ -154,13 +206,21 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
       players.add({
         'name': name,
         'score': scoreText.isEmpty ? null : int.tryParse(scoreText),
-        'rank': _ranks[i] == 0 ? 1 : _ranks[i],
+        'rank': finalRanks[i] == 0 ? 1 : finalRanks[i],
         'startedGame': false,
       });
     }
-    if (players.length < 2) {
-      _snack('Add at least 2 players');
-      return;
+    if (players.length < 2) { _snack('Add at least 2 players'); return; }
+
+    final tieNote = _tiebreakerController.text.trim();
+    final generalNote = _notesController.text.trim();
+    String? combinedNotes;
+    if (tieNote.isNotEmpty && generalNote.isNotEmpty) {
+      combinedNotes = '[Tiebreaker: $tieNote]\n$generalNote';
+    } else if (tieNote.isNotEmpty) {
+      combinedNotes = '[Tiebreaker: $tieNote]';
+    } else if (generalNote.isNotEmpty) {
+      combinedNotes = generalNote;
     }
 
     final startTime = DateTime(_date.year, _date.month, _date.day, 12, 0);
@@ -173,9 +233,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
           endTime: endTime,
           durationSeconds: totalSeconds,
           playerData: players,
-          notes: _notesController.text.trim().isEmpty
-              ? null
-              : _notesController.text.trim(),
+          notes: combinedNotes,
           isFromCollection: !_isGuestGame,
         );
 
@@ -184,12 +242,17 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     }
   }
 
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
+  void _snack(String msg) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final finalRanks = _computeFinalRanks();
+    final base = _computeBaseRanks();
+    final tieGroups = _computeTieGroups(base);
+    final hasTies = tieGroups.isNotEmpty;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Add Results')),
       body: ListView(
@@ -262,7 +325,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
           const SizedBox(height: 20),
 
           // Date
-          Text('Date', style: Theme.of(context).textTheme.titleMedium),
+          Text('Date', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           InkWell(
             onTap: _pickDate,
@@ -285,69 +348,80 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
           const SizedBox(height: 20),
 
           // Duration
-          Text('Duration', style: Theme.of(context).textTheme.titleMedium),
+          Text('Duration', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: _NumberField(
-                  controller: _hoursController,
-                  label: 'h',
-                  max: 99,
-                ),
+                child: _NumberField(controller: _hoursController, label: 'h', max: 99),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _NumberField(
-                  controller: _minutesController,
-                  label: 'min',
-                  max: 59,
-                ),
+                child: _NumberField(controller: _minutesController, label: 'min', max: 59),
               ),
             ],
           ),
           const SizedBox(height: 24),
 
-          // Players
+          // Players header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Players', style: Theme.of(context).textTheme.titleMedium),
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: _autoRank,
-                    child: const Text('Auto Rank'),
-                  ),
-                  TextButton.icon(
-                    onPressed: _addPlayerRow,
-                    icon: const Icon(Icons.person_add),
-                    label: const Text('Add'),
-                  ),
-                ],
+              Text('Players', style: theme.textTheme.titleMedium),
+              TextButton.icon(
+                onPressed: _addPlayerRow,
+                icon: const Icon(Icons.person_add),
+                label: const Text('Add'),
               ),
             ],
           ),
+          Text(
+            'Enter scores — ranks update automatically.',
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+          ),
           const SizedBox(height: 8),
+
+          // Player rows
           ...List.generate(_nameControllers.length, (i) {
+            final rank = finalRanks[i];
+            final inTieGroup = tieGroups.values.any((g) => g.contains(i));
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    DropdownButton<int>(
-                      value: _ranks[i] == 0 ? null : _ranks[i],
-                      hint: const Text('#'),
-                      items: List.generate(
-                        _nameControllers.length,
-                        (r) => DropdownMenuItem(
-                          value: r + 1,
-                          child: Text(_ordinal(r + 1)),
-                        ),
-                      ),
-                      onChanged: (rank) =>
-                          setState(() => _ranks[i] = rank ?? 0),
+                    // Rank badge
+                    SizedBox(
+                      width: 52,
+                      child: rank == 0
+                          ? const Center(
+                              child: Text('—',
+                                  style: TextStyle(color: Colors.grey, fontSize: 18)))
+                          : Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: inTieGroup
+                                      ? Colors.orange
+                                      : rank == 1
+                                          ? Colors.amber
+                                          : theme.colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  _ordinal(rank),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: inTieGroup || rank == 1
+                                        ? Colors.white
+                                        : theme.colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ),
+                            ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -371,8 +445,10 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                           isDense: true,
                           border: OutlineInputBorder(),
                         ),
-                        keyboardType: TextInputType.number,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(signed: true),
                         textAlign: TextAlign.center,
+                        onChanged: (_) => _onScoreChanged(),
                       ),
                     ),
                     if (_nameControllers.length > 2)
@@ -385,7 +461,126 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
               ),
             );
           }),
-          const SizedBox(height: 8),
+
+          // Tie resolution section
+          if (hasTies) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.balance, size: 16, color: Colors.orange),
+                const SizedBox(width: 6),
+                Text(
+                  'Resolve Ties',
+                  style: theme.textTheme.titleSmall?.copyWith(color: Colors.orange),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Tap arrows to set the final order within each tied group.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.outline),
+            ),
+            const SizedBox(height: 8),
+            ...tieGroups.entries.map((entry) {
+              final baseRank = entry.key;
+              final ordered = _tieOrder[baseRank] ?? entry.value;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      'Tied at ${_ordinal(baseRank)} place — set final order:',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  ...List.generate(ordered.length, (i) {
+                    final playerIdx = ordered[i];
+                    final name = _nameControllers[playerIdx].text.trim();
+                    final displayName =
+                        name.isEmpty ? 'Player ${playerIdx + 1}' : name;
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: Colors.orange,
+                              child: Text(
+                                _ordinal(baseRank + i),
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(displayName,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w500)),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.arrow_upward, size: 20),
+                              onPressed: i == 0
+                                  ? null
+                                  : () => setState(() {
+                                        final list = List<int>.from(ordered);
+                                        final item = list.removeAt(i);
+                                        list.insert(i - 1, item);
+                                        _tieOrder[baseRank] = list;
+                                      }),
+                              color: Colors.orange,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                  minWidth: 36, minHeight: 36),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.arrow_downward, size: 20),
+                              onPressed: i == ordered.length - 1
+                                  ? null
+                                  : () => setState(() {
+                                        final list = List<int>.from(ordered);
+                                        final item = list.removeAt(i);
+                                        list.insert(i + 1, item);
+                                        _tieOrder[baseRank] = list;
+                                      }),
+                              color: Colors.orange,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                  minWidth: 36, minHeight: 36),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                ],
+              );
+            }),
+            TextField(
+              controller: _tiebreakerController,
+              decoration: const InputDecoration(
+                labelText: 'Tiebreaker reason (optional)',
+                hintText: 'e.g. "A and B tied — B won by card count"',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.edit_note, color: Colors.orange),
+              ),
+              maxLines: 2,
+              textCapitalization: TextCapitalization.sentences,
+            ),
+            const SizedBox(height: 8),
+          ],
 
           // Notes
           TextFormField(
@@ -404,8 +599,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
             icon: const Icon(Icons.save),
             label: const Text('Save Session'),
             style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
-            ),
+                minimumSize: const Size.fromHeight(52)),
           ),
         ],
       ),
