@@ -75,6 +75,14 @@ class CatalogScreen extends StatefulWidget {
 
 class _CatalogScreenState extends State<CatalogScreen> {
   _Filters _filters = const _Filters();
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _showFilterSheet(BuildContext context, List<BoardGame> games) {
     showModalBottomSheet(
@@ -121,7 +129,35 @@ class _CatalogScreenState extends State<CatalogScreen> {
           ),
         ],
       ),
-      body: Consumer<GameProvider>(
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search game...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+              onChanged: (v) => setState(() => _searchQuery = v.trim()),
+            ),
+          ),
+          Expanded(
+            child: Consumer<GameProvider>(
         builder: (context, provider, _) {
           if (provider.games.isEmpty) {
             return const Center(
@@ -137,8 +173,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
             );
           }
 
-          final filtered =
-              provider.games.where(_filters.matches).toList();
+          final q = _searchQuery.toLowerCase();
+          final filtered = provider.games.where((g) {
+            if (!_filters.matches(g)) return false;
+            if (q.isNotEmpty && !g.name.toLowerCase().contains(q)) return false;
+            return true;
+          }).toList();
 
           if (filtered.isEmpty) {
             return Center(
@@ -148,13 +188,16 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   const Icon(Icons.filter_list_off,
                       size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
-                  const Text('No games match your filters.',
+                  const Text('No games match your search or filters.',
                       style: TextStyle(color: Colors.grey)),
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: () =>
-                        setState(() => _filters = const _Filters()),
-                    child: const Text('Clear filters'),
+                    onPressed: () => setState(() {
+                      _filters = const _Filters();
+                      _searchQuery = '';
+                      _searchController.clear();
+                    }),
+                    child: const Text('Clear search & filters'),
                   ),
                 ],
               ),
@@ -168,6 +211,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
                 _GameCard(game: filtered[index]),
           );
         },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.push(
