@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/game_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../models/board_game.dart';
 import 'add_game_screen.dart';
 import 'game_detail_screen.dart';
@@ -100,9 +101,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Games Collection'),
+        title: Text(s.catalogTitle),
         centerTitle: true,
         actions: [
           Stack(
@@ -136,7 +138,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search game...',
+                hintText: s.catalogSearchHint,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
@@ -160,14 +162,14 @@ class _CatalogScreenState extends State<CatalogScreen> {
             child: Consumer<GameProvider>(
         builder: (context, provider, _) {
           if (provider.games.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.casino_outlined, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('No games yet. Add your first game!',
-                      style: TextStyle(color: Colors.grey)),
+                  const Icon(Icons.casino_outlined, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(s.catalogEmpty,
+                      style: const TextStyle(color: Colors.grey)),
                 ],
               ),
             );
@@ -188,8 +190,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   const Icon(Icons.filter_list_off,
                       size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
-                  const Text('No games match your search or filters.',
-                      style: TextStyle(color: Colors.grey)),
+                  Text(s.catalogNoResults,
+                      style: const TextStyle(color: Colors.grey)),
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: () => setState(() {
@@ -197,7 +199,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                       _searchQuery = '';
                       _searchController.clear();
                     }),
-                    child: const Text('Clear search & filters'),
+                    child: Text(s.catalogClearFilters),
                   ),
                 ],
               ),
@@ -221,7 +223,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
           MaterialPageRoute(builder: (_) => const AddGameScreen()),
         ),
         icon: const Icon(Icons.add),
-        label: const Text('Add Game'),
+        label: Text(s.catalogAddGame),
       ),
     );
   }
@@ -258,6 +260,7 @@ class _FilterSheetState extends State<_FilterSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     return Padding(
       padding: EdgeInsets.fromLTRB(
           16, 20, 16,
@@ -270,9 +273,9 @@ class _FilterSheetState extends State<_FilterSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Filter games',
+                Text(s.catalogFilterTitle,
                     style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 TextButton(
                   onPressed: () => setState(() {
                     _players = null;
@@ -281,7 +284,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                     _weightBucket = null;
                     _notPlayedOnly = false;
                   }),
-                  child: const Text('Clear all'),
+                  child: Text(s.catalogFilterClearAll),
                 ),
               ],
             ),
@@ -289,7 +292,7 @@ class _FilterSheetState extends State<_FilterSheet> {
 
             // Players
             _FilterSection(
-              label: 'Players',
+              label: s.catalogFilterPlayers,
               child: Wrap(
                 spacing: 8,
                 runSpacing: 4,
@@ -308,15 +311,15 @@ class _FilterSheetState extends State<_FilterSheet> {
 
             // Time
             _FilterSection(
-              label: 'Playtime',
+              label: s.catalogFilterPlaytime,
               child: Wrap(
                 spacing: 8,
                 runSpacing: 4,
                 children: [
-                  _timeChip('≤ 30 min', 30),
-                  _timeChip('≤ 60 min', 60),
-                  _timeChip('≤ 120 min', 120),
-                  _timeChip('Long (120+)', -1),
+                  _timeChip(s.catalogFilterPlaytime30, 30),
+                  _timeChip(s.catalogFilterPlaytime60, 60),
+                  _timeChip(s.catalogFilterPlaytime120, 120),
+                  _timeChip(s.catalogFilterPlaytimeLong, -1),
                 ],
               ),
             ),
@@ -324,7 +327,7 @@ class _FilterSheetState extends State<_FilterSheet> {
 
             // Rating
             _FilterSection(
-              label: 'Min Rating',
+              label: s.catalogFilterMinRating,
               child: Wrap(
                 spacing: 8,
                 runSpacing: 4,
@@ -343,14 +346,14 @@ class _FilterSheetState extends State<_FilterSheet> {
 
             // Weight
             _FilterSection(
-              label: 'Weight',
+              label: s.catalogFilterWeight,
               child: Wrap(
                 spacing: 8,
                 runSpacing: 4,
                 children: [
-                  _weightChip('Light (≤2)', 1),
-                  _weightChip('Medium', 2),
-                  _weightChip('Heavy (3.5+)', 3),
+                  _weightChip(s.catalogFilterWeightLight, 1),
+                  _weightChip(s.catalogFilterWeightMedium, 2),
+                  _weightChip(s.catalogFilterWeightHeavy, 3),
                 ],
               ),
             ),
@@ -358,9 +361,9 @@ class _FilterSheetState extends State<_FilterSheet> {
 
             // Not played
             _FilterSection(
-              label: 'Status',
+              label: s.catalogFilterStatus,
               child: FilterChip(
-                label: const Text('Not played yet'),
+                label: Text(s.catalogFilterNotPlayed),
                 selected: _notPlayedOnly,
                 onSelected: (v) => setState(() => _notPlayedOnly = v),
               ),
@@ -380,7 +383,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                   ));
                   Navigator.pop(context);
                 },
-                child: const Text('Apply'),
+                child: Text(s.apply),
               ),
             ),
           ],
@@ -435,6 +438,7 @@ class _GameCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: ListTile(
@@ -448,7 +452,7 @@ class _GameCard extends StatelessWidget {
         ),
         title: Text(game.name,
             style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${game.minPlayers}–${game.maxPlayers} players'),
+        subtitle: Text(s.catalogGamePlayers(game.minPlayers, game.maxPlayers)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

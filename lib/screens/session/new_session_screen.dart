@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../providers/game_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../models/board_game.dart';
 import 'random_starter_screen.dart';
 
@@ -53,13 +54,14 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
   }
 
   void _startSession() {
+    final s = context.read<LanguageProvider>().strings;
     final players = _playerControllers
         .map((c) => c.text.trim())
         .where((name) => name.isNotEmpty)
         .toList();
     if (players.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least 2 players')),
+        SnackBar(content: Text(s.newSessionMinPlayersError)),
       );
       return;
     }
@@ -68,7 +70,7 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
       final name = _guestGameNameController.text.trim();
       if (name.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enter a game name')),
+          SnackBar(content: Text(s.newSessionEmptyGameError)),
         );
         return;
       }
@@ -92,7 +94,7 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
     } else {
       if (_selectedGame == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a game first')),
+          SnackBar(content: Text(s.newSessionNoGameError)),
         );
         return;
       }
@@ -111,9 +113,10 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Game'),
+        title: Text(s.newSessionTitle),
         centerTitle: true,
         automaticallyImplyLeading: widget.preselectedGame != null,
       ),
@@ -121,16 +124,16 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           SegmentedButton<bool>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: false,
-                label: Text('My Collection'),
-                icon: Icon(Icons.casino_outlined),
+                label: Text(s.newSessionMyCollection),
+                icon: const Icon(Icons.casino_outlined),
               ),
               ButtonSegment(
                 value: true,
-                label: Text('Other Game'),
-                icon: Icon(Icons.extension_outlined),
+                label: Text(s.newSessionOtherGame),
+                icon: const Icon(Icons.extension_outlined),
               ),
             ],
             selected: {_isGuestGame},
@@ -143,35 +146,36 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
             },
           ),
           const SizedBox(height: 20),
-          Text('Game', style: Theme.of(context).textTheme.titleMedium),
+          Text(s.newSessionGame, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           if (_isGuestGame)
             TextFormField(
               controller: _guestGameNameController,
-              decoration: const InputDecoration(
-                hintText: 'Game name...',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.extension_outlined),
+              decoration: InputDecoration(
+                hintText: s.newSessionGuestGameHint,
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.extension_outlined),
               ),
               textCapitalization: TextCapitalization.words,
             )
           else
             Consumer<GameProvider>(
               builder: (context, provider, _) {
+                final s = context.watch<LanguageProvider>().strings;
                 if (provider.games.isEmpty) {
-                  return const Card(
+                  return Card(
                     child: Padding(
-                      padding: EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
                       child: Text(
-                        'No games in catalog. Add a game first!',
-                        style: TextStyle(color: Colors.grey),
+                        s.newSessionNoGames,
+                        style: const TextStyle(color: Colors.grey),
                       ),
                     ),
                   );
                 }
                 return DropdownButtonFormField<BoardGame>(
                   value: _selectedGame,
-                  hint: const Text('Choose a game...'),
+                  hint: Text(s.newSessionGameHint),
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.casino),
@@ -190,11 +194,11 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Players', style: Theme.of(context).textTheme.titleMedium),
+              Text(s.newSessionPlayers, style: Theme.of(context).textTheme.titleMedium),
               TextButton.icon(
                 onPressed: _addPlayer,
                 icon: const Icon(Icons.person_add),
-                label: const Text('Add Player'),
+                label: Text(s.newSessionAddPlayer),
               ),
             ],
           ),
@@ -214,7 +218,7 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
                     child: TextFormField(
                       controller: _playerControllers[i],
                       decoration: InputDecoration(
-                        hintText: 'Player ${i + 1} name',
+                        hintText: s.newSessionPlayerHint(i + 1),
                         border: const OutlineInputBorder(),
                         isDense: true,
                       ),
@@ -234,7 +238,7 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
           FilledButton.icon(
             onPressed: _startSession,
             icon: const Icon(Icons.shuffle),
-            label: const Text('Pick Who Starts!'),
+            label: Text(s.newSessionPickStarter),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
             ),

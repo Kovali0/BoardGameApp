@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/board_game.dart';
 import '../../providers/game_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
 import '../session/play_landing_screen.dart';
 import 'add_game_screen.dart';
@@ -12,6 +13,7 @@ class GameDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     return Scaffold(
       appBar: AppBar(
         title: Text(game.name),
@@ -55,7 +57,7 @@ class GameDetailScreen extends StatelessWidget {
                     children: [
                       const Icon(Icons.group),
                       const SizedBox(width: 8),
-                      Text('${game.minPlayers}–${game.maxPlayers} players',
+                      Text(s.catalogGamePlayers(game.minPlayers, game.maxPlayers),
                           style: Theme.of(context).textTheme.bodyLarge),
                     ],
                   ),
@@ -76,7 +78,7 @@ class GameDetailScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Text('BGG',
+                        Text(s.gameDetailBgg,
                             style: Theme.of(context)
                                 .textTheme
                                 .labelSmall
@@ -103,7 +105,7 @@ class GameDetailScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Text('Mine',
+                        Text(s.gameDetailMine,
                             style: Theme.of(context)
                                 .textTheme
                                 .labelSmall
@@ -137,7 +139,7 @@ class GameDetailScreen extends StatelessWidget {
           ),
           if (game.setupHints != null && game.setupHints!.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Text('Setup Hints',
+            Text(s.gameDetailSetupHints,
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Card(
@@ -155,17 +157,17 @@ class GameDetailScreen extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 16),
-          Text('Play History', style: Theme.of(context).textTheme.titleMedium),
+          Text(s.gameDetailPlayHistory, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Consumer<SessionProvider>(
             builder: (context, provider, _) {
               final sessions = provider.sessionsForGame(game.id);
               if (sessions.isEmpty) {
-                return const Card(
+                return Card(
                   child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('No sessions yet for this game.',
-                        style: TextStyle(color: Colors.grey)),
+                    padding: const EdgeInsets.all(16),
+                    child: Text(s.gameDetailNoSessions,
+                        style: const TextStyle(color: Colors.grey)),
                   ),
                 );
               }
@@ -197,7 +199,7 @@ class GameDetailScreen extends StatelessWidget {
               builder: (_) => PlayLandingScreen(preselectedGame: game)),
         ),
         icon: const Icon(Icons.play_arrow),
-        label: const Text('Play Now'),
+        label: Text(s.gameDetailPlayNow),
       ),
     );
   }
@@ -212,22 +214,23 @@ class GameDetailScreen extends StatelessWidget {
   }
 
   void _confirmDelete(BuildContext context) {
+    final s = context.read<LanguageProvider>().strings;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Game?'),
-        content: Text('Are you sure you want to delete "${game.name}"?'),
+        title: Text(s.deleteGameTitle),
+        content: Text(s.deleteGameContent(game.name)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              child: Text(s.cancel)),
           FilledButton(
             onPressed: () {
               context.read<GameProvider>().deleteGame(game.id);
               Navigator.pop(ctx);
               Navigator.pop(context);
             },
-            child: const Text('Delete'),
+            child: Text(s.delete),
           ),
         ],
       ),

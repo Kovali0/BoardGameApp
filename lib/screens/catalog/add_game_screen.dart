@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/game_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../models/board_game.dart';
 import '../../services/bgg_service.dart';
 
@@ -142,17 +143,19 @@ class _AddGameScreenState extends State<AddGameScreen> {
         _complexityController.text =
             result.complexity?.toStringAsFixed(1) ?? '';
       });
+      final s = context.read<LanguageProvider>().strings;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Filled from BGG: ${result.name}'),
+          content: Text(s.addGameBggFilled(result.name)),
           backgroundColor: Colors.green.shade700,
           duration: const Duration(seconds: 2),
         ),
       );
     } catch (_) {
       if (mounted) {
+        final s = context.read<LanguageProvider>().strings;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not fill game details')),
+          SnackBar(content: Text(s.addGameBggError)),
         );
       }
     } finally {}
@@ -208,11 +211,12 @@ class _AddGameScreenState extends State<AddGameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     return GestureDetector(
       onTap: () => setState(() => _showResults = false),
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_isEditing ? 'Edit Game' : 'Add Game'),
+          title: Text(_isEditing ? s.editGameTitle : s.addGameTitle),
         ),
         body: Form(
           key: _formKey,
@@ -251,10 +255,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
               ],
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Game Name *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.casino),
+                decoration: InputDecoration(
+                  labelText: s.addGameNameLabel,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.casino),
                 ),
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Name is required' : null,
@@ -263,10 +267,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.description),
+                decoration: InputDecoration(
+                  labelText: s.addGameDescriptionLabel,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.description),
                 ),
                 maxLines: 3,
                 textCapitalization: TextCapitalization.sentences,
@@ -276,7 +280,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
                 children: [
                   Expanded(
                     child: _PlayerCountField(
-                      label: 'Min Players',
+                      label: s.addGameMinPlayersLabel,
                       value: _minPlayers,
                       onChanged: (v) => setState(() => _minPlayers = v),
                       min: 1,
@@ -286,7 +290,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: _PlayerCountField(
-                      label: 'Max Players',
+                      label: s.addGameMaxPlayersLabel,
                       value: _maxPlayers,
                       onChanged: (v) => setState(() => _maxPlayers = v),
                       min: _minPlayers,
@@ -301,10 +305,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _minPlaytimeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Min Playtime (min)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.timer_outlined),
+                      decoration: InputDecoration(
+                        labelText: s.addGameMinPlaytimeLabel,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.timer_outlined),
                       ),
                       keyboardType: TextInputType.number,
                       validator: (v) {
@@ -319,10 +323,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _maxPlaytimeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Max Playtime (min)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.timer_outlined),
+                      decoration: InputDecoration(
+                        labelText: s.addGameMaxPlaytimeLabel,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.timer_outlined),
                       ),
                       keyboardType: TextInputType.number,
                       validator: (v) {
@@ -343,10 +347,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _bggRatingController,
-                      decoration: const InputDecoration(
-                        labelText: 'BGG Rating (1–10)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.star_outline),
+                      decoration: InputDecoration(
+                        labelText: s.addGameBggRatingLabel,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.star_outline),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (v) {
@@ -361,10 +365,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _complexityController,
-                      decoration: const InputDecoration(
-                        labelText: 'BGG Weight (1–5)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.psychology_outlined),
+                      decoration: InputDecoration(
+                        labelText: s.addGameBggWeightLabel,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.psychology_outlined),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (v) {
@@ -378,17 +382,17 @@ class _AddGameScreenState extends State<AddGameScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              Text('My Notes', style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Theme.of(context).colorScheme.primary)),
+              Text(s.addGameMyNotesSection, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: Theme.of(context).colorScheme.primary)),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
                       controller: _myRatingController,
-                      decoration: const InputDecoration(
-                        labelText: 'My Rating (1–10)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.star),
+                      decoration: InputDecoration(
+                        labelText: s.addGameMyRatingLabel,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.star),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (v) {
@@ -403,10 +407,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _myWeightController,
-                      decoration: const InputDecoration(
-                        labelText: 'My Weight (1–5)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.psychology),
+                      decoration: InputDecoration(
+                        labelText: s.addGameMyWeightLabel,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.psychology),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (v) {
@@ -422,11 +426,11 @@ class _AddGameScreenState extends State<AddGameScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _hintsController,
-                decoration: const InputDecoration(
-                  labelText: 'Setup Hints',
-                  hintText: 'e.g. 1. Place board in center\n2. Deal 5 cards each...',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lightbulb_outline),
+                decoration: InputDecoration(
+                  labelText: s.addGameSetupHintsLabel,
+                  hintText: s.addGameSetupHintsHint,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lightbulb_outline),
                   alignLabelWithHint: true,
                 ),
                 maxLines: 6,
@@ -436,7 +440,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
               FilledButton.icon(
                 onPressed: _save,
                 icon: const Icon(Icons.save),
-                label: Text(_isEditing ? 'Save Changes' : 'Add Game'),
+                label: Text(_isEditing ? s.saveChangesButton : s.addGameButton),
               ),
             ],
           ),
@@ -461,6 +465,7 @@ class _BggSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -469,7 +474,7 @@ class _BggSearchBar extends StatelessWidget {
             const Icon(Icons.search, size: 18),
             const SizedBox(width: 6),
             Text(
-              'Search game database',
+              s.addGameBggSearchTitle,
               style: Theme.of(context)
                   .textTheme
                   .labelLarge
@@ -482,7 +487,7 @@ class _BggSearchBar extends StatelessWidget {
           controller: controller,
           onChanged: onChanged,
           decoration: InputDecoration(
-            hintText: 'Search by name (English or native language)...',
+            hintText: s.addGameBggSearchHint,
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.travel_explore),
             suffixIcon: controller.text.isNotEmpty
@@ -663,6 +668,7 @@ class _NotFoundBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final s = context.watch<LanguageProvider>().strings;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -676,7 +682,7 @@ class _NotFoundBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Not found in database — fill the details manually below.',
+              s.addGameBggNotFound,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

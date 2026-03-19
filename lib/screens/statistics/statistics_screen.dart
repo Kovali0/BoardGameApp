@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/board_game.dart';
 import '../../models/game_session.dart';
 import '../../providers/game_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
 
 // ─── Filter helpers ────────────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final sessions = context.watch<SessionProvider>().sessions;
     final allGames = context.watch<GameProvider>().games;
     final filteredSessions = _applyFilter(sessions, _selectedYear, _selectedMonth);
@@ -79,7 +81,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Useless statistics'),
+        title: Text(s.statsTitle),
         centerTitle: true,
         actions: [
           Stack(
@@ -106,10 +108,10 @@ class _StatisticsScreenState extends State<StatisticsScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Global'),
-            Tab(text: 'Games'),
-            Tab(text: 'Players'),
+          tabs: [
+            Tab(text: s.statsGlobal),
+            Tab(text: s.statsGamesTab),
+            Tab(text: s.statsPlayersTab),
           ],
         ),
       ),
@@ -117,20 +119,20 @@ class _StatisticsScreenState extends State<StatisticsScreen>
         controller: _tabController,
         children: [
           filteredSessions.isEmpty && allGames.isEmpty
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.bar_chart, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
+                      const Icon(Icons.bar_chart, size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
                       Text(
-                        'No sessions yet',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                        s.statsNoSessions,
+                        style: const TextStyle(fontSize: 18, color: Colors.grey),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
-                        'Play some games to see your stats!',
-                        style: TextStyle(color: Colors.grey),
+                        s.statsPlayGames,
+                        style: const TextStyle(color: Colors.grey),
                       ),
                     ],
                   ),
@@ -154,6 +156,7 @@ class _StatisticsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final playedCount = allGames.where((g) => g.hasBeenPlayed).length;
     final unplayedCount = allGames.length - playedCount;
 
@@ -161,19 +164,19 @@ class _StatisticsContent extends StatelessWidget {
     List<Widget> sessionWidgets = [];
     if (sessions.isNotEmpty) {
       final totalSessions = sessions.length;
-      final uniqueGames = sessions.map((s) => s.gameId).toSet().length;
-      final totalSeconds = sessions.fold(0, (sum, s) => sum + s.durationSeconds);
+      final uniqueGames = sessions.map((sess) => sess.gameId).toSet().length;
+      final totalSeconds = sessions.fold(0, (sum, sess) => sum + sess.durationSeconds);
 
       final gameMap = <String, ({String name, int count, int seconds})>{};
-      for (final s in sessions) {
-        final prev = gameMap[s.gameId];
+      for (final sess in sessions) {
+        final prev = gameMap[sess.gameId];
         if (prev == null) {
-          gameMap[s.gameId] = (name: s.gameName, count: 1, seconds: s.durationSeconds);
+          gameMap[sess.gameId] = (name: sess.gameName, count: 1, seconds: sess.durationSeconds);
         } else {
-          gameMap[s.gameId] = (
+          gameMap[sess.gameId] = (
             name: prev.name,
             count: prev.count + 1,
-            seconds: prev.seconds + s.durationSeconds,
+            seconds: prev.seconds + sess.durationSeconds,
           );
         }
       }
@@ -185,8 +188,8 @@ class _StatisticsContent extends StatelessWidget {
       final avgSeconds = totalSeconds ~/ totalSessions;
 
       final winMap = <String, int>{};
-      for (final s in sessions) {
-        for (final p in s.players) {
+      for (final sess in sessions) {
+        for (final p in sess.players) {
           if (p.rank == 1) {
             winMap[p.playerName] = (winMap[p.playerName] ?? 0) + 1;
           }
@@ -196,18 +199,18 @@ class _StatisticsContent extends StatelessWidget {
         ..sort((a, b) => b.value.compareTo(a.value));
 
       sessionWidgets = [
-        const _SectionHeader('Overview'),
+        _SectionHeader(s.statsOverview),
         Row(
           children: [
-            Expanded(child: _StatCard(label: 'Sessions', value: '$totalSessions')),
+            Expanded(child: _StatCard(label: s.statsSessions, value: '$totalSessions')),
             const SizedBox(width: 8),
-            Expanded(child: _StatCard(label: 'Time played', value: _formatSeconds(totalSeconds))),
+            Expanded(child: _StatCard(label: s.statsTimePlayed, value: _formatSeconds(totalSeconds))),
             const SizedBox(width: 8),
-            Expanded(child: _StatCard(label: 'Games', value: '$uniqueGames')),
+            Expanded(child: _StatCard(label: s.statsGames, value: '$uniqueGames')),
           ],
         ),
         const SizedBox(height: 20),
-        const _SectionHeader('Top Games'),
+        _SectionHeader(s.statsTopGames),
         Card(
           child: Column(
             children: [
@@ -223,22 +226,22 @@ class _StatisticsContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-        const _SectionHeader('Records'),
+        _SectionHeader(s.statsRecords),
         Card(
           child: Column(
             children: [
               _RecordRow(
-                label: 'Longest session',
+                label: s.statsLongest,
                 value: '${longest.gameName}  •  ${longest.durationFormatted}',
               ),
               const Divider(height: 1),
               _RecordRow(
-                label: 'Shortest session',
+                label: s.statsShortest,
                 value: '${shortest.gameName}  •  ${shortest.durationFormatted}',
               ),
               const Divider(height: 1),
               _RecordRow(
-                label: 'Average duration',
+                label: s.statsAvgDuration,
                 value: _formatSeconds(avgSeconds),
               ),
             ],
@@ -246,7 +249,7 @@ class _StatisticsContent extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         if (hallOfFame.isNotEmpty) ...[
-          const _SectionHeader('Player Hall of Fame'),
+          _SectionHeader(s.statsHallOfFame),
           Card(
             child: Column(
               children: [
@@ -269,17 +272,17 @@ class _StatisticsContent extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         if (allGames.isNotEmpty) ...[
-          const _SectionHeader('Collection'),
+          _SectionHeader(s.statsCollection),
           _CollectionChart(played: playedCount, unplayed: unplayedCount),
           const SizedBox(height: 20),
         ],
         if (sessions.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
             child: Center(
               child: Text(
-                'Play some games to see session stats!',
-                style: TextStyle(color: Colors.grey),
+                s.statsPlayGames,
+                style: const TextStyle(color: Colors.grey),
               ),
             ),
           ),
@@ -299,6 +302,7 @@ class _CollectionChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final total = played + unplayed;
     final pct = total > 0 ? (played / total * 100).round() : 0;
 
@@ -330,9 +334,9 @@ class _CollectionChart extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _LegendItem(color: Colors.green, label: 'Played', count: played),
+                  _LegendItem(color: Colors.green, label: s.statsPlayed, count: played),
                   const SizedBox(height: 12),
-                  _LegendItem(color: Colors.amber.shade700, label: 'Unplayed', count: unplayed),
+                  _LegendItem(color: Colors.amber.shade700, label: s.statsUnplayed, count: unplayed),
                 ],
               ),
             ),
@@ -448,22 +452,23 @@ class _GamesStatsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final statsMap = <String, _GameStatsData>{};
-    for (final s in sessions) {
-      final data = statsMap.putIfAbsent(s.gameId, () => _GameStatsData(name: s.gameName));
+    for (final sess in sessions) {
+      final data = statsMap.putIfAbsent(sess.gameId, () => _GameStatsData(name: sess.gameName));
       data.sessionCount++;
-      data.totalSeconds += s.durationSeconds;
-      data.totalPlayers += s.players.length;
-      if (data.lastPlayed == null || s.startTime.isAfter(data.lastPlayed!)) {
-        data.lastPlayed = s.startTime;
+      data.totalSeconds += sess.durationSeconds;
+      data.totalPlayers += sess.players.length;
+      if (data.lastPlayed == null || sess.startTime.isAfter(data.lastPlayed!)) {
+        data.lastPlayed = sess.startTime;
       }
-      if (data.longestSeconds == null || s.durationSeconds > data.longestSeconds!) {
-        data.longestSeconds = s.durationSeconds;
+      if (data.longestSeconds == null || sess.durationSeconds > data.longestSeconds!) {
+        data.longestSeconds = sess.durationSeconds;
       }
-      if (data.shortestSeconds == null || s.durationSeconds < data.shortestSeconds!) {
-        data.shortestSeconds = s.durationSeconds;
+      if (data.shortestSeconds == null || sess.durationSeconds < data.shortestSeconds!) {
+        data.shortestSeconds = sess.durationSeconds;
       }
-      for (final p in s.players) {
+      for (final p in sess.players) {
         if (p.score != null) {
           data.scores.add(p.score!);
           final prev = data.playerBestScore[p.playerName];
@@ -485,15 +490,15 @@ class _GamesStatsContent extends StatelessWidget {
       ..sort((a, b) => a.name.compareTo(b.name));
 
     if (playedGames.isEmpty && neverPlayed.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.sports_esports, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No games yet', style: TextStyle(fontSize: 18, color: Colors.grey)),
-            SizedBox(height: 8),
-            Text('Add games to your collection!', style: TextStyle(color: Colors.grey)),
+            const Icon(Icons.sports_esports, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(s.statsNoGames, style: const TextStyle(fontSize: 18, color: Colors.grey)),
+            const SizedBox(height: 8),
+            Text(s.statsAddGames, style: const TextStyle(color: Colors.grey)),
           ],
         ),
       );
@@ -505,7 +510,7 @@ class _GamesStatsContent extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         if (playedGames.isNotEmpty) ...[
-          const _SectionHeader('Played Games'),
+          _SectionHeader(s.statsPlayedGames),
           for (final stats in playedGames) ...[
             Card(
               child: ListTile(
@@ -526,7 +531,7 @@ class _GamesStatsContent extends StatelessWidget {
           const SizedBox(height: 8),
         ],
         if (neverPlayed.isNotEmpty) ...[
-          const _SectionHeader('Never Played'),
+          _SectionHeader(s.statsNeverPlayed),
           Card(
             child: Column(
               children: [
@@ -541,9 +546,9 @@ class _GamesStatsContent extends StatelessWidget {
                             style: const TextStyle(fontWeight: FontWeight.w500),
                           ),
                         ),
-                        const Text(
-                          'Not played yet',
-                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                        Text(
+                          s.statsNotPlayedYet,
+                          style: const TextStyle(color: Colors.grey, fontSize: 13),
                         ),
                       ],
                     ),
@@ -566,6 +571,7 @@ class _GameDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final dateFormat = DateFormat('d MMM yyyy');
     final bestPlayer = stats.bestPlayer;
     final lastPlayed = stats.lastPlayed;
@@ -576,36 +582,36 @@ class _GameDetailScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // ── Overview ──
-          const _SectionHeader('Overview'),
+          _SectionHeader(s.statsOverview),
           Row(
             children: [
-              Expanded(child: _StatCard(label: 'Sessions', value: '${stats.sessionCount}')),
+              Expanded(child: _StatCard(label: s.statsSessions, value: '${stats.sessionCount}')),
               const SizedBox(width: 8),
-              Expanded(child: _StatCard(label: 'Total time', value: _formatSeconds(stats.totalSeconds))),
+              Expanded(child: _StatCard(label: s.statsTotalTime, value: _formatSeconds(stats.totalSeconds))),
               const SizedBox(width: 8),
-              Expanded(child: _StatCard(label: 'Avg time', value: _formatSeconds(stats.avgSeconds))),
+              Expanded(child: _StatCard(label: s.statsAvgDuration, value: _formatSeconds(stats.avgSeconds))),
             ],
           ),
           const SizedBox(height: 8),
           Card(
             child: Column(
               children: [
-                _RecordRow(label: 'Avg players', value: stats.avgPlayers.toStringAsFixed(1)),
+                _RecordRow(label: s.statsAvgPlayers, value: stats.avgPlayers.toStringAsFixed(1)),
                 if (lastPlayed != null) ...[
                   const Divider(height: 1),
-                  _RecordRow(label: 'Last played', value: dateFormat.format(lastPlayed)),
+                  _RecordRow(label: s.statsLastPlayed, value: dateFormat.format(lastPlayed)),
                 ],
                 if (bestPlayer != null) ...[
                   const Divider(height: 1),
-                  _RecordRow(label: 'Best player', value: bestPlayer),
+                  _RecordRow(label: s.statsBestPlayer, value: bestPlayer),
                 ],
                 if (stats.longestSeconds != null) ...[
                   const Divider(height: 1),
-                  _RecordRow(label: 'Longest session', value: _formatSeconds(stats.longestSeconds!)),
+                  _RecordRow(label: s.statsLongest, value: _formatSeconds(stats.longestSeconds!)),
                 ],
                 if (stats.shortestSeconds != null && stats.sessionCount > 1) ...[
                   const Divider(height: 1),
-                  _RecordRow(label: 'Shortest session', value: _formatSeconds(stats.shortestSeconds!)),
+                  _RecordRow(label: s.statsShortest, value: _formatSeconds(stats.shortestSeconds!)),
                 ],
               ],
             ),
@@ -614,15 +620,15 @@ class _GameDetailScreen extends StatelessWidget {
           // ── Scores ──
           if (stats.scores.isNotEmpty) ...[
             const SizedBox(height: 24),
-            const _SectionHeader('Scores'),
+            _SectionHeader(s.statsRecords),
             Card(
               child: Column(
                 children: [
-                  _RecordRow(label: 'Highest score', value: '${stats.highestScore} pts'),
+                  _RecordRow(label: s.statsHighestScore, value: '${stats.highestScore} pts'),
                   const Divider(height: 1),
-                  _RecordRow(label: 'Avg score', value: '${stats.avgScore!.toStringAsFixed(1)} pts'),
+                  _RecordRow(label: s.statsAvgScore, value: '${stats.avgScore!.toStringAsFixed(1)} pts'),
                   const Divider(height: 1),
-                  _RecordRow(label: 'Lowest score', value: '${stats.lowestScore} pts'),
+                  _RecordRow(label: s.statsLowestScore, value: '${stats.lowestScore} pts'),
                 ],
               ),
             ),
@@ -642,10 +648,11 @@ class _PlayersStatsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     // Build lightweight summary just for the list
     final playerMap = <String, ({int sessions, int wins})>{};
-    for (final s in sessions) {
-      for (final p in s.players) {
+    for (final sess in sessions) {
+      for (final p in sess.players) {
         final prev = playerMap[p.playerName];
         playerMap[p.playerName] = (
           sessions: (prev?.sessions ?? 0) + 1,
@@ -661,15 +668,15 @@ class _PlayersStatsContent extends StatelessWidget {
       });
 
     if (players.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No players yet', style: TextStyle(fontSize: 18, color: Colors.grey)),
-            SizedBox(height: 8),
-            Text('Play some games to see player stats!', style: TextStyle(color: Colors.grey)),
+            const Icon(Icons.people_outline, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(s.statsNoPlayers, style: const TextStyle(fontSize: 18, color: Colors.grey)),
+            const SizedBox(height: 8),
+            Text(s.statsPlayForPlayerStats, style: const TextStyle(color: Colors.grey)),
           ],
         ),
       );
@@ -730,15 +737,16 @@ class _PlayerDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     int wins = 0, secondPlaces = 0, thirdPlaces = 0, totalSeconds = 0;
     final gameMap = <String, _PlayerGameData>{};
 
-    for (final s in sessions) {
-      final match = s.players.where((p) => p.playerName == playerName);
+    for (final sess in sessions) {
+      final match = sess.players.where((p) => p.playerName == playerName);
       if (match.isEmpty) continue;
       final p = match.first;
 
-      totalSeconds += s.durationSeconds;
+      totalSeconds += sess.durationSeconds;
       if (p.rank == 1) {
         wins++;
       } else if (p.rank == 2) {
@@ -747,7 +755,7 @@ class _PlayerDetailScreen extends StatelessWidget {
         thirdPlaces++;
       }
 
-      final gd = gameMap.putIfAbsent(s.gameId, () => _PlayerGameData(name: s.gameName));
+      final gd = gameMap.putIfAbsent(sess.gameId, () => _PlayerGameData(name: sess.gameName));
       gd.sessionCount++;
       if (p.rank == 1) {
         gd.wins++;
@@ -779,34 +787,34 @@ class _PlayerDetailScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // ── Section 1: Overview ──
-          const _SectionHeader('Overview'),
+          _SectionHeader(s.statsOverview),
           Row(
             children: [
-              Expanded(child: _StatCard(label: 'Sessions', value: '$totalSessions')),
+              Expanded(child: _StatCard(label: s.statsSessions, value: '$totalSessions')),
               const SizedBox(width: 8),
-              Expanded(child: _StatCard(label: 'Wins', value: '$wins')),
+              Expanded(child: _StatCard(label: s.statsWins, value: '$wins')),
               const SizedBox(width: 8),
-              Expanded(child: _StatCard(label: 'Win rate', value: '${(winRate * 100).round()}%')),
+              Expanded(child: _StatCard(label: s.statsWinRate, value: '${(winRate * 100).round()}%')),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _StatCard(label: '2nd places', value: '$secondPlaces')),
+              Expanded(child: _StatCard(label: s.statsSecondPlaces, value: '$secondPlaces')),
               const SizedBox(width: 8),
-              Expanded(child: _StatCard(label: '3rd places', value: '$thirdPlaces')),
+              Expanded(child: _StatCard(label: s.statsThirdPlaces, value: '$thirdPlaces')),
               const SizedBox(width: 8),
-              Expanded(child: _StatCard(label: 'Games', value: '$uniqueGames')),
+              Expanded(child: _StatCard(label: s.statsGames, value: '$uniqueGames')),
             ],
           ),
           const SizedBox(height: 8),
           Card(
             child: Column(
               children: [
-                _RecordRow(label: 'Total time', value: _formatSeconds(totalSeconds)),
+                _RecordRow(label: s.statsTotalTime, value: _formatSeconds(totalSeconds)),
                 if (mostPlayed != null) ...[
                   const Divider(height: 1),
-                  _RecordRow(label: 'Most played', value: mostPlayed),
+                  _RecordRow(label: s.statsMostPlayed, value: mostPlayed),
                 ],
               ],
             ),
@@ -815,7 +823,7 @@ class _PlayerDetailScreen extends StatelessWidget {
 
           // ── Section 2: Game Breakdown ──
           if (games.isNotEmpty) ...[
-            const _SectionHeader('Game Breakdown'),
+            _SectionHeader(s.statsGameBreakdown),
             for (final game in games) ...[
               _PlayerGameCard(data: game),
               const SizedBox(height: 12),
@@ -834,6 +842,7 @@ class _PlayerGameCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final highScore = data.highestScore;
     final avgScore = data.avgScore;
 
@@ -853,17 +862,17 @@ class _PlayerGameCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
               children: [
-                Expanded(child: _StatCard(label: 'Games', value: '${data.sessionCount}')),
+                Expanded(child: _StatCard(label: s.statsGames, value: '${data.sessionCount}')),
                 const SizedBox(width: 8),
-                Expanded(child: _StatCard(label: 'Wins', value: '${data.wins}')),
+                Expanded(child: _StatCard(label: s.statsWins, value: '${data.wins}')),
                 const SizedBox(width: 8),
-                Expanded(child: _StatCard(label: '2nd', value: '${data.secondPlaces}')),
+                Expanded(child: _StatCard(label: s.statsSecondPlaces, value: '${data.secondPlaces}')),
                 const SizedBox(width: 8),
-                Expanded(child: _StatCard(label: '3rd', value: '${data.thirdPlaces}')),
+                Expanded(child: _StatCard(label: s.statsThirdPlaces, value: '${data.thirdPlaces}')),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _StatCard(
-                    label: 'Win rate',
+                    label: s.statsWinRate,
                     value: '${(data.winRate * 100).round()}%',
                   ),
                 ),
@@ -873,10 +882,10 @@ class _PlayerGameCard extends StatelessWidget {
           if (highScore != null || avgScore != null) ...[
             const Divider(height: 1),
             if (highScore != null)
-              _RecordRow(label: 'Best score', value: '$highScore pts'),
+              _RecordRow(label: s.statsBestScore, value: '$highScore pts'),
             if (highScore != null && avgScore != null) const Divider(height: 1),
             if (avgScore != null)
-              _RecordRow(label: 'Avg score', value: '${avgScore.toStringAsFixed(1)} pts'),
+              _RecordRow(label: s.statsAvgScore, value: '${avgScore.toStringAsFixed(1)} pts'),
           ],
         ],
       ),
@@ -916,6 +925,7 @@ class _FilterSheetState extends State<_FilterSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final years = _years(widget.allSessions);
     final months = _year == null ? <int>[] : _months(widget.allSessions, _year!);
 
@@ -925,17 +935,17 @@ class _FilterSheetState extends State<_FilterSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Filter sessions',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(s.statsFilterTitle,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
-          const Text('Year', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(s.filterYear, style: const TextStyle(color: Colors.grey, fontSize: 13)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 4,
             children: [
               FilterChip(
-                label: const Text('All'),
+                label: Text(s.filterAll),
                 selected: _year == null,
                 onSelected: (_) => setState(() { _year = null; _month = null; }),
               ),
@@ -949,14 +959,14 @@ class _FilterSheetState extends State<_FilterSheet> {
           ),
           if (_year != null) ...[
             const SizedBox(height: 12),
-            const Text('Month', style: TextStyle(color: Colors.grey, fontSize: 13)),
+            Text(s.filterMonth, style: const TextStyle(color: Colors.grey, fontSize: 13)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 4,
               children: [
                 FilterChip(
-                  label: const Text('All'),
+                  label: Text(s.filterAll),
                   selected: _month == null,
                   onSelected: (_) => setState(() => _month = null),
                 ),
@@ -977,7 +987,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                 widget.onApply(_year, _month);
                 Navigator.pop(context);
               },
-              child: const Text('Apply'),
+              child: Text(s.apply),
             ),
           ),
         ],

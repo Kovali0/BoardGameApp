@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/board_game.dart';
 import '../../providers/game_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
 
 class EndSessionScreen extends StatefulWidget {
@@ -186,15 +187,10 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
     }
   }
 
-  String _ordinal(int n) {
-    if (n == 1) return '1st';
-    if (n == 2) return '2nd';
-    if (n == 3) return '3rd';
-    return '${n}th';
-  }
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final theme = Theme.of(context);
     final finalRanks = _computeFinalRanks();
     final base = _computeBaseRanks();
@@ -203,7 +199,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Game Over!'),
+        title: Text(s.endSessionTitle),
         automaticallyImplyLeading: false,
       ),
       body: ListView(
@@ -226,10 +222,10 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('Results', style: theme.textTheme.titleMedium),
+          Text(s.sessionDetailResults, style: theme.textTheme.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'Enter scores — ranks update automatically.',
+            s.resultsScoresHint,
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.outline),
           ),
@@ -269,7 +265,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  _ordinal(rank),
+                                  s.ordinal(rank),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
@@ -294,8 +290,8 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           if (p['startedGame'] as bool)
-                            const Text('started',
-                                style: TextStyle(
+                            Text(s.endSessionStarted,
+                                style: const TextStyle(
                                     fontSize: 11, color: Colors.amber)),
                         ],
                       ),
@@ -304,8 +300,8 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                       child: TextField(
                         controller:
                             p['scoreController'] as TextEditingController,
-                        decoration: const InputDecoration(
-                          hintText: 'Score',
+                        decoration: InputDecoration(
+                          hintText: s.resultsScore,
                           isDense: true,
                           border: OutlineInputBorder(),
                         ),
@@ -329,7 +325,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                 const Icon(Icons.balance, size: 16, color: Colors.orange),
                 const SizedBox(width: 6),
                 Text(
-                  'Resolve Ties',
+                  s.resultsTieTitle,
                   style: theme.textTheme.titleSmall
                       ?.copyWith(color: Colors.orange),
                 ),
@@ -337,7 +333,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Drag to set the final order within each tied group.',
+              s.resultsTieHintDrag,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.outline),
             ),
@@ -348,7 +344,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
               return _TieGroup(
                 baseRank: baseRank,
                 orderedPlayers: ordered,
-                ordinal: _ordinal,
+                ordinal: s.ordinal,
                 onReorder: (oldIndex, newIndex) {
                   setState(() {
                     final list = List<String>.from(ordered);
@@ -362,9 +358,9 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
             const SizedBox(height: 4),
             TextField(
               controller: _tiebreakerController,
-              decoration: const InputDecoration(
-                labelText: 'Tiebreaker reason (optional)',
-                hintText: 'e.g. "A and B tied — B won by card count"',
+              decoration: InputDecoration(
+                labelText: s.resultsTiebreakerLabel,
+                hintText: s.resultsTiebreakerHint,
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.edit_note, color: Colors.orange),
               ),
@@ -376,8 +372,8 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
 
           TextFormField(
             controller: _notesController,
-            decoration: const InputDecoration(
-              labelText: 'Notes (optional)',
+            decoration: InputDecoration(
+              labelText: s.resultsNotesLabel,
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.note),
             ),
@@ -387,7 +383,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
           FilledButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.save),
-            label: const Text('Save Session'),
+            label: Text(s.resultsSaveButton),
             style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52)),
           ),
@@ -412,6 +408,7 @@ class _TieGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -419,7 +416,7 @@ class _TieGroup extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 4),
           child: Text(
-            'Tied at ${ordinal(baseRank)} place — set final order:',
+            s.resultsTiedAt(baseRank),
             style: theme.textTheme.labelMedium?.copyWith(
               color: Colors.orange,
               fontWeight: FontWeight.bold,

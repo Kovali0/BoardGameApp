@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/game_session.dart';
+import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
 
 class SessionDetailScreen extends StatelessWidget {
@@ -9,6 +10,7 @@ class SessionDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final date = session.startTime;
     final dateStr =
         '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
@@ -43,7 +45,7 @@ class SessionDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Text('Results', style: Theme.of(context).textTheme.titleMedium),
+          Text(s.sessionDetailResults, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           ...session.players.map((player) {
             final medals = ['🥇', '🥈', '🥉'];
@@ -59,8 +61,8 @@ class SessionDetailScreen extends StatelessWidget {
                     style:
                         const TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: player.startedGame
-                    ? const Text('started the game',
-                        style: TextStyle(color: Colors.amber))
+                    ? Text(s.sessionDetailStartedGame,
+                        style: const TextStyle(color: Colors.amber))
                     : null,
                 trailing: player.score != null
                     ? Text('${player.score} pts',
@@ -72,7 +74,7 @@ class SessionDetailScreen extends StatelessWidget {
           }),
           if (session.notes != null && session.notes!.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Text('Notes', style: Theme.of(context).textTheme.titleMedium),
+            Text(s.sessionDetailNotes, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Card(
               child: Padding(
@@ -87,23 +89,23 @@ class SessionDetailScreen extends StatelessWidget {
   }
 
   void _confirmDelete(BuildContext context) {
+    final s = context.read<LanguageProvider>().strings;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Session?'),
-        content:
-            const Text('This session record will be permanently deleted.'),
+        title: Text(s.deleteSessionTitle),
+        content: Text(s.deleteSessionContent),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              child: Text(s.cancel)),
           FilledButton(
             onPressed: () {
               context.read<SessionProvider>().deleteSession(session.id);
               Navigator.pop(ctx);
               Navigator.pop(context);
             },
-            child: const Text('Delete'),
+            child: Text(s.delete),
           ),
         ],
       ),

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../providers/session_provider.dart';
+import '../providers/language_provider.dart';
 import 'catalog/catalog_screen.dart';
 import 'session/play_landing_screen.dart';
 import 'history/history_screen.dart';
 import 'statistics/statistics_screen.dart';
+import 'settings/settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -33,11 +35,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screens = [
-      const CatalogScreen(),
-      const PlayLandingScreen(),
-      const HistoryScreen(),
-      const StatisticsScreen(),
+    final s = context.watch<LanguageProvider>().strings;
+
+    const screens = [
+      CatalogScreen(),
+      PlayLandingScreen(),
+      HistoryScreen(),
+      StatisticsScreen(),
+      SettingsScreen(),
     ];
 
     return Scaffold(
@@ -46,26 +51,31 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) =>
             setState(() => _currentIndex = index),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.casino_outlined),
-            selectedIcon: Icon(Icons.casino),
-            label: 'My Games',
+            icon: const Icon(Icons.casino_outlined),
+            selectedIcon: const Icon(Icons.casino),
+            label: s.navMyGames,
           ),
           NavigationDestination(
-            icon: Icon(Icons.play_circle_outline),
-            selectedIcon: Icon(Icons.play_circle),
-            label: 'Play',
+            icon: const Icon(Icons.play_circle_outline),
+            selectedIcon: const Icon(Icons.play_circle),
+            label: s.navPlay,
           ),
           NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history),
-            label: 'History',
+            icon: const Icon(Icons.history_outlined),
+            selectedIcon: const Icon(Icons.history),
+            label: s.navHistory,
           ),
           NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: 'Statistics',
+            icon: const Icon(Icons.bar_chart_outlined),
+            selectedIcon: const Icon(Icons.bar_chart),
+            label: s.navStatistics,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.settings_outlined),
+            selectedIcon: const Icon(Icons.settings),
+            label: s.navSettings,
           ),
         ],
       ),

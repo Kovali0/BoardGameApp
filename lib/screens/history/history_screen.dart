@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/game_provider.dart';
 import '../../models/game_session.dart';
@@ -58,6 +59,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final provider = context.watch<SessionProvider>();
     final allSessions = provider.sessions;
     final filteredSessions = _applyFilter(allSessions, _selectedYear, _selectedMonth);
@@ -65,7 +67,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sessions history'),
+        title: Text(s.historyTitle),
         centerTitle: true,
         actions: [
           Stack(
@@ -92,26 +94,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
       body: allSessions.isEmpty
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.history, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('No sessions yet. Play a game!',
-                      style: TextStyle(color: Colors.grey)),
+                  const Icon(Icons.history, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(s.historyEmpty,
+                      style: const TextStyle(color: Colors.grey)),
                 ],
               ),
             )
           : filteredSessions.isEmpty
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.calendar_today, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('No sessions in this period.',
-                          style: TextStyle(color: Colors.grey)),
+                      const Icon(Icons.calendar_today, size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      Text(s.historyNoPeriod,
+                          style: const TextStyle(color: Colors.grey)),
                     ],
                   ),
                 )
@@ -157,6 +159,7 @@ class _FilterSheetState extends State<_FilterSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final years = _years(widget.allSessions);
     final months = _year == null ? <int>[] : _months(widget.allSessions, _year!);
 
@@ -166,17 +169,17 @@ class _FilterSheetState extends State<_FilterSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Filter sessions',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(s.historyFilterTitle,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
-          const Text('Year', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(s.filterYear, style: const TextStyle(color: Colors.grey, fontSize: 13)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 4,
             children: [
               FilterChip(
-                label: const Text('All'),
+                label: Text(s.filterAll),
                 selected: _year == null,
                 onSelected: (_) => setState(() { _year = null; _month = null; }),
               ),
@@ -190,14 +193,14 @@ class _FilterSheetState extends State<_FilterSheet> {
           ),
           if (_year != null) ...[
             const SizedBox(height: 12),
-            const Text('Month', style: TextStyle(color: Colors.grey, fontSize: 13)),
+            Text(s.filterMonth, style: const TextStyle(color: Colors.grey, fontSize: 13)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 4,
               children: [
                 FilterChip(
-                  label: const Text('All'),
+                  label: Text(s.filterAll),
                   selected: _month == null,
                   onSelected: (_) => setState(() => _month = null),
                 ),
@@ -218,7 +221,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                 widget.onApply(_year, _month);
                 Navigator.pop(context);
               },
-              child: const Text('Apply'),
+              child: Text(s.apply),
             ),
           ),
         ],
@@ -259,7 +262,7 @@ class _SessionCard extends StatelessWidget {
         ),
         title: Text(session.gameName,
             style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('Winner: $winner  •  $dateStr'),
+        subtitle: Text('${context.watch<LanguageProvider>().strings.historyWinner(winner)}  •  $dateStr'),
         trailing: Text(session.durationFormatted,
             style: Theme.of(context).textTheme.bodySmall),
         onTap: () => Navigator.push(

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import '../../models/board_game.dart';
 import 'new_session_screen.dart';
 import 'add_results_screen.dart';
@@ -9,9 +11,10 @@ class PlayLandingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Play new session'),
+        title: Text(s.playLandingTitle),
         centerTitle: true,
         automaticallyImplyLeading: preselectedGame != null,
       ),
@@ -23,8 +26,8 @@ class PlayLandingScreen extends StatelessWidget {
           children: [
             _OptionCard(
               icon: Icons.timer_outlined,
-              title: 'Start a new game',
-              subtitle: 'Track time live with the timer',
+              title: s.playLandingStartNew,
+              subtitle: s.playLandingStartNewSub,
               filled: true,
               onTap: () => Navigator.push(
                 context,
@@ -37,8 +40,8 @@ class PlayLandingScreen extends StatelessWidget {
             const SizedBox(height: 16),
             _OptionCard(
               icon: Icons.edit_note_outlined,
-              title: 'Add results of a game',
-              subtitle: 'Already played? Log it manually',
+              title: s.playLandingAddResults,
+              subtitle: s.playLandingAddResultsSub,
               filled: false,
               onTap: () => Navigator.push(
                 context,

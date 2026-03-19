@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/game_provider.dart';
 import 'providers/session_provider.dart';
+import 'providers/language_provider.dart';
 import 'screens/splash_screen.dart';
 
 void main() {
@@ -10,6 +11,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => GameProvider()),
         ChangeNotifierProvider(create: (_) => SessionProvider()),
+        ChangeNotifierProvider(create: (_) => LanguageProvider()),
       ],
       child: const BoardGameApp(),
     ),

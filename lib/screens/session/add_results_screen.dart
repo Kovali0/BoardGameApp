@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/board_game.dart';
 import '../../providers/game_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
 
 class AddResultsScreen extends StatefulWidget {
@@ -165,19 +166,14 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
   String get _formattedDate =>
       '${_date.day.toString().padLeft(2, '0')}.${_date.month.toString().padLeft(2, '0')}.${_date.year}';
 
-  String _ordinal(int n) {
-    if (n == 1) return '1st';
-    if (n == 2) return '2nd';
-    if (n == 3) return '3rd';
-    return '${n}th';
-  }
 
   Future<void> _save() async {
+    final s = context.read<LanguageProvider>().strings;
     // Resolve game
     BoardGame? game;
     if (_isGuestGame) {
       final name = _guestNameController.text.trim();
-      if (name.isEmpty) { _snack('Enter a game name'); return; }
+      if (name.isEmpty) { _snack(s.addResultsEmptyGameError); return; }
       game = BoardGame(
         id: const Uuid().v4(),
         name: name,
@@ -186,7 +182,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
         createdAt: DateTime.now(),
       );
     } else {
-      if (_selectedGame == null) { _snack('Please select a game'); return; }
+      if (_selectedGame == null) { _snack(s.addResultsNoGameError); return; }
       game = _selectedGame!;
     }
 
@@ -194,7 +190,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     final hours = int.tryParse(_hoursController.text.trim()) ?? 0;
     final minutes = int.tryParse(_minutesController.text.trim()) ?? 0;
     final totalSeconds = hours * 3600 + minutes * 60;
-    if (totalSeconds <= 0) { _snack('Duration must be at least 1 minute'); return; }
+    if (totalSeconds <= 0) { _snack(s.addResultsDurationError); return; }
 
     // Resolve players with final ranks
     final finalRanks = _computeFinalRanks();
@@ -210,7 +206,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
         'startedGame': false,
       });
     }
-    if (players.length < 2) { _snack('Add at least 2 players'); return; }
+    if (players.length < 2) { _snack(s.addResultsMinPlayersError); return; }
 
     final tieNote = _tiebreakerController.text.trim();
     final generalNote = _notesController.text.trim();
@@ -247,6 +243,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final theme = Theme.of(context);
     final finalRanks = _computeFinalRanks();
     final base = _computeBaseRanks();
@@ -254,22 +251,22 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     final hasTies = tieGroups.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Results')),
+      appBar: AppBar(title: Text(s.addResultsTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // Game toggle
           SegmentedButton<bool>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: false,
-                label: Text('My Collection'),
-                icon: Icon(Icons.casino_outlined),
+                label: Text(s.resultsMyCollection),
+                icon: const Icon(Icons.casino_outlined),
               ),
               ButtonSegment(
                 value: true,
-                label: Text('Other Game'),
-                icon: Icon(Icons.extension_outlined),
+                label: Text(s.resultsOtherGame),
+                icon: const Icon(Icons.extension_outlined),
               ),
             ],
             selected: {_isGuestGame},
@@ -287,8 +284,8 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
           if (_isGuestGame)
             TextFormField(
               controller: _guestNameController,
-              decoration: const InputDecoration(
-                hintText: 'Game name...',
+              decoration: InputDecoration(
+                hintText: s.resultsGameHint,
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.extension_outlined),
               ),
@@ -298,19 +295,19 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
             Consumer<GameProvider>(
               builder: (context, provider, _) {
                 if (provider.games.isEmpty) {
-                  return const Card(
+                  return Card(
                     child: Padding(
-                      padding: EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
                       child: Text(
-                        'No games in catalog. Add a game first!',
-                        style: TextStyle(color: Colors.grey),
+                        s.resultsNoGames,
+                        style: const TextStyle(color: Colors.grey),
                       ),
                     ),
                   );
                 }
                 return DropdownButtonFormField<BoardGame>(
                   value: _selectedGame,
-                  hint: const Text('Choose a game...'),
+                  hint: Text(s.resultsGameDropdownHint),
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.casino),
@@ -325,7 +322,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
           const SizedBox(height: 20),
 
           // Date
-          Text('Date', style: theme.textTheme.titleMedium),
+          Text(s.resultsDate, style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           InkWell(
             onTap: _pickDate,
@@ -348,16 +345,16 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
           const SizedBox(height: 20),
 
           // Duration
-          Text('Duration', style: theme.textTheme.titleMedium),
+          Text(s.resultsDuration, style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: _NumberField(controller: _hoursController, label: 'h', max: 99),
+                child: _NumberField(controller: _hoursController, label: s.resultsHours, max: 99),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _NumberField(controller: _minutesController, label: 'min', max: 59),
+                child: _NumberField(controller: _minutesController, label: s.resultsMinutes, max: 59),
               ),
             ],
           ),
@@ -367,16 +364,16 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Players', style: theme.textTheme.titleMedium),
+              Text(s.newSessionPlayers, style: theme.textTheme.titleMedium),
               TextButton.icon(
                 onPressed: _addPlayerRow,
                 icon: const Icon(Icons.person_add),
-                label: const Text('Add'),
+                label: Text(s.resultsAddPlayer),
               ),
             ],
           ),
           Text(
-            'Enter scores — ranks update automatically.',
+            s.resultsScoresHint,
             style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
           ),
           const SizedBox(height: 8),
@@ -411,7 +408,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  _ordinal(rank),
+                                  s.ordinal(rank),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
@@ -429,7 +426,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                       child: TextField(
                         controller: _nameControllers[i],
                         decoration: InputDecoration(
-                          hintText: 'Player ${i + 1}',
+                          hintText: s.resultsPlayerHint(i + 1),
                           isDense: true,
                           border: const OutlineInputBorder(),
                         ),
@@ -440,8 +437,8 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                     Expanded(
                       child: TextField(
                         controller: _scoreControllers[i],
-                        decoration: const InputDecoration(
-                          hintText: 'Score',
+                        decoration: InputDecoration(
+                          hintText: s.resultsScore,
                           isDense: true,
                           border: OutlineInputBorder(),
                         ),
@@ -470,14 +467,14 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                 const Icon(Icons.balance, size: 16, color: Colors.orange),
                 const SizedBox(width: 6),
                 Text(
-                  'Resolve Ties',
+                  s.resultsTieTitle,
                   style: theme.textTheme.titleSmall?.copyWith(color: Colors.orange),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             Text(
-              'Tap arrows to set the final order within each tied group.',
+              s.resultsTieHintTap,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.outline),
             ),
@@ -491,7 +488,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Text(
-                      'Tied at ${_ordinal(baseRank)} place — set final order:',
+                      s.resultsTiedAt(baseRank),
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: Colors.orange,
                         fontWeight: FontWeight.bold,
@@ -502,7 +499,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                     final playerIdx = ordered[i];
                     final name = _nameControllers[playerIdx].text.trim();
                     final displayName =
-                        name.isEmpty ? 'Player ${playerIdx + 1}' : name;
+                        name.isEmpty ? s.resultsPlayerHint(playerIdx + 1) : name;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 4),
                       color: theme.colorScheme.surfaceContainerHighest,
@@ -515,7 +512,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                               radius: 14,
                               backgroundColor: Colors.orange,
                               child: Text(
-                                _ordinal(baseRank + i),
+                                s.ordinal(baseRank + i),
                                 style: const TextStyle(
                                   fontSize: 10,
                                   color: Colors.white,
@@ -570,9 +567,9 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
             }),
             TextField(
               controller: _tiebreakerController,
-              decoration: const InputDecoration(
-                labelText: 'Tiebreaker reason (optional)',
-                hintText: 'e.g. "A and B tied — B won by card count"',
+              decoration: InputDecoration(
+                labelText: s.resultsTiebreakerLabel,
+                hintText: s.resultsTiebreakerHint,
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.edit_note, color: Colors.orange),
               ),
@@ -585,8 +582,8 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
           // Notes
           TextFormField(
             controller: _notesController,
-            decoration: const InputDecoration(
-              labelText: 'Notes (optional)',
+            decoration: InputDecoration(
+              labelText: s.resultsNotesLabel,
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.note),
             ),
@@ -597,7 +594,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
           FilledButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.save),
-            label: const Text('Save Session'),
+            label: Text(s.resultsSaveButton),
             style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52)),
           ),

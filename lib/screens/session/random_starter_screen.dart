@@ -1,5 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import '../../models/board_game.dart';
 import 'active_session_screen.dart';
 
@@ -71,6 +73,7 @@ class _RandomStarterScreenState extends State<RandomStarterScreen>
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     return Scaffold(
       appBar: AppBar(title: Text(widget.game.name)),
       body: SafeArea(
@@ -80,7 +83,7 @@ class _RandomStarterScreenState extends State<RandomStarterScreen>
           children: [
             const SizedBox(height: 16),
             Text(
-              'Who starts the game?',
+              s.randomStarterQuestion,
               style: Theme.of(context).textTheme.headlineSmall,
               textAlign: TextAlign.center,
             ),
@@ -149,7 +152,7 @@ class _RandomStarterScreenState extends State<RandomStarterScreen>
             const SizedBox(height: 24),
             if (_winner != null) ...[
               Text(
-                '${_winner!} goes first!',
+                s.randomStarterWinner(_winner!),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.bold,
@@ -170,7 +173,7 @@ class _RandomStarterScreenState extends State<RandomStarterScreen>
                   ),
                 ),
                 icon: const Icon(Icons.timer),
-                label: const Text('Start Game!'),
+                label: Text(s.randomStarterStartGame),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(52),
                 ),
@@ -179,7 +182,7 @@ class _RandomStarterScreenState extends State<RandomStarterScreen>
               FilledButton.icon(
                 onPressed: _isSpinning ? null : _spin,
                 icon: const Icon(Icons.shuffle),
-                label: Text(_isSpinning ? 'Spinning...' : 'Spin!'),
+                label: Text(_isSpinning ? s.randomStarterSpinning : s.randomStarterSpin),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(52),
                 ),

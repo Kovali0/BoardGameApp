@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/language_provider.dart';
 import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -85,6 +87,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -135,7 +138,7 @@ class _SplashScreenState extends State<SplashScreen>
                 child: SlideTransition(
                   position: _titleSlide,
                   child: Text(
-                    'Board Game\nManager',
+                    s.splashTitle,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 34,
@@ -151,7 +154,7 @@ class _SplashScreenState extends State<SplashScreen>
               FadeTransition(
                 opacity: _subtitleFade,
                 child: Text(
-                  'Your collection, your stats',
+                  s.splashSubtitle,
                   style: TextStyle(
                     fontSize: 15,
                     color: scheme.onSurface.withValues(alpha: 0.55),

@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import '../../models/board_game.dart';
 import 'end_session_screen.dart';
 
@@ -74,18 +76,19 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   }
 
   void _showAbandonDialog() {
+    final s = context.read<LanguageProvider>().strings;
     showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Abandon Game?'),
-        content: const Text('The current session will be lost.'),
+        title: Text(s.activeAbandonTitle),
+        content: Text(s.activeAbandonContent),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Continue')),
+              child: Text(s.activeContinue)),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Abandon')),
+              child: Text(s.activeAbandon)),
         ],
       ),
     ).then((confirm) {
@@ -112,6 +115,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -156,7 +160,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                     children: [
                       const Icon(Icons.emoji_events, color: Colors.amber),
                       const SizedBox(width: 8),
-                      Text('${widget.starterName} starts',
+                      Text(s.activeStarts(widget.starterName),
                           style: Theme.of(context).textTheme.titleMedium),
                     ],
                   ),
@@ -179,7 +183,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _togglePause,
                       icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause),
-                      label: Text(_isPaused ? 'Resume' : 'Pause'),
+                      label: Text(_isPaused ? s.activeResume : s.activePause),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -187,7 +191,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                     child: FilledButton.icon(
                       onPressed: _endGame,
                       icon: const Icon(Icons.flag),
-                      label: const Text('End Game'),
+                      label: Text(s.activeEndGame),
                     ),
                   ),
                 ],
