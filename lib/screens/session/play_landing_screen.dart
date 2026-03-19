@@ -15,7 +15,8 @@ class PlayLandingScreen extends StatelessWidget {
         centerTitle: true,
         automaticallyImplyLeading: preselectedGame != null,
       ),
-      body: Padding(
+      body: SafeArea(
+        child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -48,6 +49,7 @@ class PlayLandingScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

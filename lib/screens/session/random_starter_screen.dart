@@ -73,7 +73,8 @@ class _RandomStarterScreenState extends State<RandomStarterScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.game.name)),
-      body: Padding(
+      body: SafeArea(
+        child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
@@ -185,6 +186,7 @@ class _RandomStarterScreenState extends State<RandomStarterScreen>
               ),
             const SizedBox(height: 16),
           ],
+        ),
         ),
       ),
     );

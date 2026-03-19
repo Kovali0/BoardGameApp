@@ -920,7 +920,7 @@ class _FilterSheetState extends State<_FilterSheet> {
     final months = _year == null ? <int>[] : _months(widget.allSessions, _year!);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+      padding: EdgeInsets.fromLTRB(16, 20, 16, 16 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
