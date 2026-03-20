@@ -53,6 +53,22 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     super.dispose();
   }
 
+  void _quickAddPlayer(String name) {
+    for (final c in _nameControllers) {
+      if (c.text.trim().isEmpty) {
+        setState(() => c.text = name);
+        return;
+      }
+    }
+    _addPlayerRow();
+    // Set name on the new last controller after setState completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_nameControllers.isNotEmpty) {
+        setState(() => _nameControllers.last.text = name);
+      }
+    });
+  }
+
   void _addPlayerRow() {
     setState(() {
       _nameControllers.add(TextEditingController());
@@ -243,7 +259,11 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
-    final formattedDate = context.watch<SettingsProvider>().formatDate(_date);
+    final settingsProvider = context.watch<SettingsProvider>();
+    final formattedDate = settingsProvider.formatDate(_date);
+    final defaultPlayers = settingsProvider.defaultPlayers;
+    final usedNames = _nameControllers.map((c) => c.text.trim()).toSet();
+    final availableQuick = defaultPlayers.where((p) => !usedNames.contains(p)).toList();
     final theme = Theme.of(context);
     final finalRanks = _computeFinalRanks();
     final base = _computeBaseRanks();
@@ -376,6 +396,23 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
             s.resultsScoresHint,
             style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
           ),
+          if (availableQuick.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                Text(s.settingsQuickAdd,
+                    style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ...availableQuick.map((name) => ActionChip(
+                      label: Text(name),
+                      avatar: const Icon(Icons.person_add_alt_1, size: 14),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _quickAddPlayer(name),
+                    )),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
 
           // Player rows

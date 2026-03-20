@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/language_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../models/board_game.dart';
 import 'end_session_screen.dart';
 
@@ -62,6 +64,9 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
   }
 
   void _togglePause() {
+    if (context.read<SettingsProvider>().timerFeedbackEnabled) {
+      HapticFeedback.mediumImpact();
+    }
     setState(() {
       if (_isPaused) {
         _totalPausedSeconds +=
@@ -98,6 +103,9 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
 
   void _endGame() {
     _timer.cancel();
+    if (context.read<SettingsProvider>().timerFeedbackEnabled) {
+      HapticFeedback.heavyImpact();
+    }
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(

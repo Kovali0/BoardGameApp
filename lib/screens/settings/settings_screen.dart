@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/settings_provider.dart';
 
+// ignore_for_file: use_build_context_synchronously
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -171,6 +173,19 @@ class SettingsScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const Divider(height: 1),
+                  // Timer feedback
+                  SwitchListTile(
+                    title: Text(s.settingsTimerFeedback),
+                    subtitle: Text(s.settingsTimerFeedbackSub,
+                        style: const TextStyle(fontSize: 12)),
+                    value: settings.timerFeedbackEnabled,
+                    onChanged: (v) => settings.setTimerFeedbackEnabled(v),
+                    contentPadding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                  ),
+                  const Divider(height: 1),
+                  // Default players
+                  _DefaultPlayersTile(s: s, settings: settings),
                 ],
               ),
             ),
@@ -319,6 +334,95 @@ class _DateChip extends StatelessWidget {
       label: Text(label, style: const TextStyle(fontFamily: 'monospace')),
       selected: selected,
       onSelected: (_) => onTap(),
+    );
+  }
+}
+
+// ─── Default players tile ─────────────────────────────────────────────────────
+
+class _DefaultPlayersTile extends StatefulWidget {
+  final dynamic s;
+  final SettingsProvider settings;
+  const _DefaultPlayersTile({required this.s, required this.settings});
+
+  @override
+  State<_DefaultPlayersTile> createState() => _DefaultPlayersTileState();
+}
+
+class _DefaultPlayersTileState extends State<_DefaultPlayersTile> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _controller.text.trim();
+    if (name.isNotEmpty) {
+      widget.settings.addDefaultPlayer(name);
+      _controller.clear();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    final players = widget.settings.defaultPlayers;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(s.settingsDefaultPlayers,
+              style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  decoration: InputDecoration(
+                    hintText: s.settingsDefaultPlayersHint,
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  onSubmitted: (_) => _submit(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: _submit,
+                style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10)),
+                child: Text(s.settingsDefaultPlayersAdd),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (players.isEmpty)
+            Text(s.settingsDefaultPlayersEmpty,
+                style: const TextStyle(color: Colors.grey, fontSize: 13))
+          else
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: players
+                  .map((name) => Chip(
+                        label: Text(name),
+                        deleteIcon: const Icon(Icons.close, size: 16),
+                        onDeleted: () =>
+                            widget.settings.removeDefaultPlayer(name),
+                      ))
+                  .toList(),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -9,6 +9,8 @@ class SettingsProvider extends ChangeNotifier {
   AppThemeMode _themeMode = AppThemeMode.system;
   Color _seedColor = const Color(0xFF8B4513);
   AppDateFormat _dateFormat = AppDateFormat.dmy;
+  List<String> _defaultPlayers = [];
+  bool _timerFeedbackEnabled = true;
 
   // ─── 6 preset accent colors ───────────────────────────────────────────────
   static const List<Color> accentColors = [
@@ -24,6 +26,8 @@ class SettingsProvider extends ChangeNotifier {
   AppThemeMode get themeMode => _themeMode;
   Color get seedColor => _seedColor;
   AppDateFormat get dateFormat => _dateFormat;
+  List<String> get defaultPlayers => List.unmodifiable(_defaultPlayers);
+  bool get timerFeedbackEnabled => _timerFeedbackEnabled;
 
   ThemeMode get flutterThemeMode => switch (_themeMode) {
     AppThemeMode.system => ThemeMode.system,
@@ -66,6 +70,9 @@ class SettingsProvider extends ChangeNotifier {
       _     => AppDateFormat.dmy,
     };
 
+    _defaultPlayers = prefs.getStringList('default_players') ?? [];
+    _timerFeedbackEnabled = prefs.getBool('timer_feedback') ?? true;
+
     notifyListeners();
   }
 
@@ -100,5 +107,29 @@ class SettingsProvider extends ChangeNotifier {
       AppDateFormat.ymd => 'ymd',
       AppDateFormat.dmy => 'dmy',
     });
+  }
+
+  Future<void> addDefaultPlayer(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || _defaultPlayers.contains(trimmed)) return;
+    _defaultPlayers = [..._defaultPlayers, trimmed];
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('default_players', _defaultPlayers);
+  }
+
+  Future<void> removeDefaultPlayer(String name) async {
+    _defaultPlayers = _defaultPlayers.where((p) => p != name).toList();
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('default_players', _defaultPlayers);
+  }
+
+  Future<void> setTimerFeedbackEnabled(bool value) async {
+    if (_timerFeedbackEnabled == value) return;
+    _timerFeedbackEnabled = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('timer_feedback', value);
   }
 }

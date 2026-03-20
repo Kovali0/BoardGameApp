@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../models/board_game.dart';
 import 'random_starter_screen.dart';
 
@@ -111,9 +112,27 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
     }
   }
 
+  void _quickAddPlayer(String name) {
+    // Fill the first empty slot, or add a new one
+    for (final c in _playerControllers) {
+      if (c.text.trim().isEmpty) {
+        setState(() => c.text = name);
+        return;
+      }
+    }
+    final maxP = _isGuestGame ? 20 : (_selectedGame?.maxPlayers ?? 20);
+    if (_playerControllers.length < maxP) {
+      setState(() => _playerControllers.add(TextEditingController(text: name)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
+    final defaultPlayers = context.watch<SettingsProvider>().defaultPlayers;
+    // Players not yet in any field
+    final usedNames = _playerControllers.map((c) => c.text.trim()).toSet();
+    final availableQuick = defaultPlayers.where((p) => !usedNames.contains(p)).toList();
     return Scaffold(
       appBar: AppBar(
         title: Text(s.newSessionTitle),
@@ -202,6 +221,23 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
               ),
             ],
           ),
+          if (availableQuick.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                Text(s.settingsQuickAdd,
+                    style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ...availableQuick.map((name) => ActionChip(
+                      label: Text(name),
+                      avatar: const Icon(Icons.person_add_alt_1, size: 14),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _quickAddPlayer(name),
+                    )),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
           ...List.generate(
             _playerControllers.length,
