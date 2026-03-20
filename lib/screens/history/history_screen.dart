@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../providers/game_provider.dart';
 import '../../models/game_session.dart';
 import 'session_detail_screen.dart';
@@ -241,9 +242,7 @@ class _SessionCard extends StatelessWidget {
     final winners =
         session.players.where((p) => p.rank == 1).map((p) => p.playerName).join(' & ');
     final winner = winners.isNotEmpty ? winners : '?';
-    final date = session.startTime;
-    final dateStr =
-        '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+    final dateStr = context.watch<SettingsProvider>().formatDate(session.startTime);
 
     final game = context
         .watch<GameProvider>()

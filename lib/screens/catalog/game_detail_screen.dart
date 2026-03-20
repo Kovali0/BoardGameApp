@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/board_game.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../providers/session_provider.dart';
 import '../session/play_landing_screen.dart';
 import 'add_game_screen.dart';
@@ -177,8 +178,7 @@ class GameDetailScreen extends StatelessWidget {
                       ? session.players.first.playerName
                       : '?';
                   final date = session.startTime;
-                  final dateStr =
-                      '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+                  final dateStr = context.watch<SettingsProvider>().formatDate(date);
                   return ListTile(
                     leading:
                         const Icon(Icons.emoji_events, color: Colors.amber),

@@ -6,6 +6,7 @@ import '../../models/board_game.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../providers/settings_provider.dart';
 
 class AddResultsScreen extends StatefulWidget {
   final BoardGame? preselectedGame;
@@ -163,8 +164,6 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     if (picked != null) setState(() => _date = picked);
   }
 
-  String get _formattedDate =>
-      '${_date.day.toString().padLeft(2, '0')}.${_date.month.toString().padLeft(2, '0')}.${_date.year}';
 
 
   Future<void> _save() async {
@@ -244,6 +243,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
+    final formattedDate = context.watch<SettingsProvider>().formatDate(_date);
     final theme = Theme.of(context);
     final finalRanks = _computeFinalRanks();
     final base = _computeBaseRanks();
@@ -336,7 +336,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(_formattedDate),
+                  Text(formattedDate),
                   const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
                 ],
               ),

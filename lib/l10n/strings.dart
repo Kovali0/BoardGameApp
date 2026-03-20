@@ -212,7 +212,19 @@ abstract class AppStrings {
 
   // Settings
   String get settingsTitle;
+  String get settingsAppearance;
+  String get settingsTheme;
+  String get settingsThemeSystem;
+  String get settingsThemeLight;
+  String get settingsThemeDark;
+  String get settingsAccentColor;
+  String get settingsGeneral;
   String get settingsLanguage;
+  String get settingsDateFormat;
+  String get settingsAbout;
+  String get settingsVersion;
+  String get settingsBggCredit;
+  String get settingsBuiltWith;
 }
 
 // ─── English ──────────────────────────────────────────────────────────────────
@@ -437,7 +449,19 @@ class EnStrings extends AppStrings {
 
   // Settings
   @override String get settingsTitle => 'Settings';
+  @override String get settingsAppearance => 'APPEARANCE';
+  @override String get settingsTheme => 'Theme';
+  @override String get settingsThemeSystem => 'System';
+  @override String get settingsThemeLight => 'Light';
+  @override String get settingsThemeDark => 'Dark';
+  @override String get settingsAccentColor => 'Accent color';
+  @override String get settingsGeneral => 'GENERAL';
   @override String get settingsLanguage => 'Language';
+  @override String get settingsDateFormat => 'Date format';
+  @override String get settingsAbout => 'ABOUT';
+  @override String get settingsVersion => 'Version 1.0.0';
+  @override String get settingsBggCredit => 'Board game data powered by BoardGameGeek';
+  @override String get settingsBuiltWith => 'Built with Flutter ❤️';
 }
 
 // ─── Polish ───────────────────────────────────────────────────────────────────
@@ -654,5 +678,17 @@ class PlStrings extends AppStrings {
 
   // Settings
   @override String get settingsTitle => 'Ustawienia';
+  @override String get settingsAppearance => 'WYGLĄD';
+  @override String get settingsTheme => 'Motyw';
+  @override String get settingsThemeSystem => 'Systemowy';
+  @override String get settingsThemeLight => 'Jasny';
+  @override String get settingsThemeDark => 'Ciemny';
+  @override String get settingsAccentColor => 'Kolor akcentu';
+  @override String get settingsGeneral => 'OGÓLNE';
   @override String get settingsLanguage => 'Język';
+  @override String get settingsDateFormat => 'Format daty';
+  @override String get settingsAbout => 'O APLIKACJI';
+  @override String get settingsVersion => 'Wersja 1.0.0';
+  @override String get settingsBggCredit => 'Dane gier dostarczone przez BoardGameGeek';
+  @override String get settingsBuiltWith => 'Stworzone z Flutter ❤️';
 }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/game_session.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../providers/settings_provider.dart';
 
 class SessionDetailScreen extends StatelessWidget {
   final GameSession session;
@@ -11,9 +12,7 @@ class SessionDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
-    final date = session.startTime;
-    final dateStr =
-        '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+    final dateStr = context.watch<SettingsProvider>().formatDate(session.startTime);
 
     return Scaffold(
       appBar: AppBar(
