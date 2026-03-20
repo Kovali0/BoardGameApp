@@ -7,6 +7,10 @@ import '../../providers/game_provider.dart';
 import '../../models/game_session.dart';
 import 'session_detail_screen.dart';
 
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum _HistorySortOrder { newest, oldest, byGame }
+
 // ─── Filter helpers ────────────────────────────────────────────────────────────
 
 List<int> _years(List<GameSession> s) =>
@@ -24,6 +28,19 @@ List<GameSession> _applyFilter(List<GameSession> all, int? year, int? month) {
   return byYear.where((s) => s.startTime.month == month).toList();
 }
 
+List<GameSession> _applySort(List<GameSession> sessions, _HistorySortOrder sort) {
+  final list = List<GameSession>.from(sessions);
+  switch (sort) {
+    case _HistorySortOrder.newest:
+      list.sort((a, b) => b.startTime.compareTo(a.startTime));
+    case _HistorySortOrder.oldest:
+      list.sort((a, b) => a.startTime.compareTo(b.startTime));
+    case _HistorySortOrder.byGame:
+      list.sort((a, b) => a.gameName.toLowerCase().compareTo(b.gameName.toLowerCase()));
+  }
+  return list;
+}
+
 const _kMonths = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 // ─── Screen ────────────────────────────────────────────────────────────────────
@@ -38,6 +55,7 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   int? _selectedYear;
   int? _selectedMonth;
+  _HistorySortOrder _sortOrder = _HistorySortOrder.newest;
 
   void _showFilterSheet(BuildContext context, List<GameSession> allSessions) {
     showModalBottomSheet(
@@ -63,7 +81,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final s = context.watch<LanguageProvider>().strings;
     final provider = context.watch<SessionProvider>();
     final allSessions = provider.sessions;
-    final filteredSessions = _applyFilter(allSessions, _selectedYear, _selectedMonth);
+    final filteredSessions = _applySort(
+      _applyFilter(allSessions, _selectedYear, _selectedMonth),
+      _sortOrder,
+    );
     final filterActive = _selectedYear != null;
 
     return Scaffold(
@@ -71,6 +92,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
         title: Text(s.historyTitle),
         centerTitle: true,
         actions: [
+          PopupMenuButton<_HistorySortOrder>(
+            icon: const Icon(Icons.sort),
+            onSelected: (v) => setState(() => _sortOrder = v),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: _HistorySortOrder.newest,
+                child: Text(s.historySortNewest),
+              ),
+              PopupMenuItem(
+                value: _HistorySortOrder.oldest,
+                child: Text(s.historySortOldest),
+              ),
+              PopupMenuItem(
+                value: _HistorySortOrder.byGame,
+                child: Text(s.historySortByGame),
+              ),
+            ],
+          ),
           Stack(
             children: [
               IconButton(

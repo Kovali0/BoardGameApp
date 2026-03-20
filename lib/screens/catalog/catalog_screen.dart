@@ -6,13 +6,19 @@ import '../../models/board_game.dart';
 import 'add_game_screen.dart';
 import 'game_detail_screen.dart';
 
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum _ViewMode { list, grid }
+
+enum _SortOrder { az, za, recentlyAdded, myRating }
+
 // ─── Filter state ─────────────────────────────────────────────────────────────
 
 class _Filters {
-  final int? players;       // game must support exactly this many players
-  final int? maxMinutes;    // max playtime bucket (null = any)
-  final double? minRating;  // minimum rating threshold
-  final int? weightBucket;  // 1=Light, 2=Medium, 3=Heavy (null = any)
+  final int? players;
+  final int? maxMinutes;
+  final double? minRating;
+  final int? weightBucket;
   final bool notPlayedOnly;
 
   const _Filters({
@@ -31,26 +37,21 @@ class _Filters {
       notPlayedOnly;
 
   bool matches(BoardGame g) {
-    // Players
     if (players != null) {
       if (g.minPlayers > players! || g.maxPlayers < players!) return false;
     }
-    // Time — use maxPlaytime if available, else minPlaytime
     if (maxMinutes != null) {
       final t = g.maxPlaytime ?? g.minPlaytime;
       if (maxMinutes == -1) {
-        // "Long" bucket: > 120 min
         if (t != null && t <= 120) return false;
       } else {
         if (t != null && t > maxMinutes!) return false;
       }
     }
-    // Rating — use myRating if set, else bggRating
     if (minRating != null) {
       final r = g.myRating ?? g.bggRating;
       if (r == null || r < minRating!) return false;
     }
-    // Weight — use myWeight if set, else complexity
     if (weightBucket != null) {
       final w = g.myWeight ?? g.complexity;
       if (w == null) return false;
@@ -58,11 +59,30 @@ class _Filters {
       if (weightBucket == 2 && (w <= 2.0 || w > 3.5)) return false;
       if (weightBucket == 3 && w <= 3.5) return false;
     }
-    // Not played
     if (notPlayedOnly && g.hasBeenPlayed) return false;
-
     return true;
   }
+}
+
+// ─── Sort helper ──────────────────────────────────────────────────────────────
+
+List<BoardGame> _applySortOrder(List<BoardGame> games, _SortOrder sort) {
+  final list = List<BoardGame>.from(games);
+  switch (sort) {
+    case _SortOrder.az:
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    case _SortOrder.za:
+      list.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+    case _SortOrder.recentlyAdded:
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    case _SortOrder.myRating:
+      list.sort((a, b) {
+        final ra = a.myRating ?? a.bggRating ?? 0.0;
+        final rb = b.myRating ?? b.bggRating ?? 0.0;
+        return rb.compareTo(ra);
+      });
+  }
+  return list;
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
@@ -76,6 +96,8 @@ class CatalogScreen extends StatefulWidget {
 
 class _CatalogScreenState extends State<CatalogScreen> {
   _Filters _filters = const _Filters();
+  _ViewMode _viewMode = _ViewMode.list;
+  _SortOrder _sortOrder = _SortOrder.recentlyAdded;
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -102,11 +124,33 @@ class _CatalogScreenState extends State<CatalogScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
+    final sortItems = <PopupMenuEntry<_SortOrder>>[
+      PopupMenuItem(value: _SortOrder.az, child: Text(s.catalogSortAZ)),
+      PopupMenuItem(value: _SortOrder.za, child: Text(s.catalogSortZA)),
+      PopupMenuItem(value: _SortOrder.recentlyAdded, child: Text(s.catalogSortRecentlyAdded)),
+      PopupMenuItem(value: _SortOrder.myRating, child: Text(s.catalogSortMyRating)),
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: Text(s.catalogTitle),
         centerTitle: true,
+        leading: IconButton(
+          icon: Icon(_viewMode == _ViewMode.list
+              ? Icons.grid_view
+              : Icons.view_list),
+          tooltip: _viewMode == _ViewMode.list ? 'Grid view' : 'List view',
+          onPressed: () => setState(() => _viewMode =
+              _viewMode == _ViewMode.list ? _ViewMode.grid : _ViewMode.list),
+        ),
         actions: [
+          // Sort
+          PopupMenuButton<_SortOrder>(
+            icon: const Icon(Icons.sort),
+            onSelected: (v) => setState(() => _sortOrder = v),
+            itemBuilder: (_) => sortItems,
+          ),
+          // Filter
           Stack(
             children: [
               IconButton(
@@ -160,59 +204,79 @@ class _CatalogScreenState extends State<CatalogScreen> {
           ),
           Expanded(
             child: Consumer<GameProvider>(
-        builder: (context, provider, _) {
-          if (provider.games.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.casino_outlined, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(s.catalogEmpty,
-                      style: const TextStyle(color: Colors.grey)),
-                ],
-              ),
-            );
-          }
+              builder: (context, provider, _) {
+                if (provider.games.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.casino_outlined,
+                            size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text(s.catalogEmpty,
+                            style: const TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  );
+                }
 
-          final q = _searchQuery.toLowerCase();
-          final filtered = provider.games.where((g) {
-            if (!_filters.matches(g)) return false;
-            if (q.isNotEmpty && !g.name.toLowerCase().contains(q)) return false;
-            return true;
-          }).toList();
+                final q = _searchQuery.toLowerCase();
+                var filtered = provider.games.where((g) {
+                  if (!_filters.matches(g)) return false;
+                  if (q.isNotEmpty && !g.name.toLowerCase().contains(q))
+                    return false;
+                  return true;
+                }).toList();
 
-          if (filtered.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.filter_list_off,
-                      size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(s.catalogNoResults,
-                      style: const TextStyle(color: Colors.grey)),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () => setState(() {
-                      _filters = const _Filters();
-                      _searchQuery = '';
-                      _searchController.clear();
-                    }),
-                    child: Text(s.catalogClearFilters),
-                  ),
-                ],
-              ),
-            );
-          }
+                if (filtered.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.filter_list_off,
+                            size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text(s.catalogNoResults,
+                            style: const TextStyle(color: Colors.grey)),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => setState(() {
+                            _filters = const _Filters();
+                            _searchQuery = '';
+                            _searchController.clear();
+                          }),
+                          child: Text(s.catalogClearFilters),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: filtered.length,
-            itemBuilder: (context, index) =>
-                _GameCard(game: filtered[index]),
-          );
-        },
+                filtered = _applySortOrder(filtered, _sortOrder);
+
+                if (_viewMode == _ViewMode.grid) {
+                  return GridView.builder(
+                    padding: const EdgeInsets.all(8),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.82,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) =>
+                        _GameGridCard(game: filtered[index]),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) =>
+                      _GameCard(game: filtered[index]),
+                );
+              },
             ),
           ),
         ],
@@ -263,8 +327,12 @@ class _FilterSheetState extends State<_FilterSheet> {
     final s = context.watch<LanguageProvider>().strings;
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          16, 20, 16,
-          16 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom),
+          16,
+          20,
+          16,
+          16 +
+              MediaQuery.of(context).viewInsets.bottom +
+              MediaQuery.of(context).padding.bottom),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -274,8 +342,8 @@ class _FilterSheetState extends State<_FilterSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(s.catalogFilterTitle,
-                    style:
-                        const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
                 TextButton(
                   onPressed: () => setState(() {
                     _players = null;
@@ -421,8 +489,7 @@ class _FilterSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(color: Colors.grey, fontSize: 13)),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
         const SizedBox(height: 6),
         child,
       ],
@@ -430,7 +497,7 @@ class _FilterSection extends StatelessWidget {
   }
 }
 
-// ─── Game card ────────────────────────────────────────────────────────────────
+// ─── Game list card ───────────────────────────────────────────────────────────
 
 class _GameCard extends StatelessWidget {
   final BoardGame game;
@@ -473,6 +540,94 @@ class _GameCard extends StatelessWidget {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => GameDetailScreen(game: game)),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Game grid card ───────────────────────────────────────────────────────────
+
+class _GameGridCard extends StatelessWidget {
+  final BoardGame game;
+  const _GameGridCard({required this.game});
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = game.thumbnailUrl ?? game.imageUrl;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => GameDetailScreen(game: game)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: imageUrl != null
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          _GridPlaceholder(name: game.name),
+                    )
+                  : _GridPlaceholder(name: game.name),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      game.name,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () =>
+                        context.read<GameProvider>().togglePlayed(game.id),
+                    child: Icon(
+                      game.hasBeenPlayed
+                          ? Icons.check_circle
+                          : Icons.circle,
+                      color: game.hasBeenPlayed
+                          ? Colors.green
+                          : colorScheme.outlineVariant,
+                      size: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GridPlaceholder extends StatelessWidget {
+  final String name;
+  const _GridPlaceholder({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Center(
+        child: Text(
+          name[0].toUpperCase(),
+          style: TextStyle(
+            fontSize: 40,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+          ),
         ),
       ),
     );
