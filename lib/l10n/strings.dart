@@ -218,6 +218,12 @@ abstract class AppStrings {
   String get statsBestScore;
   String get statsGames;
   String get statsFilterTitle;
+  String get statsHeadToHead;
+  String get statsSelectPlayer;
+  String get statsViewRivalry;
+  String get statsTogetherSessions;
+  String get statsDraws;
+  String get statsNeverPlayedTogether;
 
   // Wishlist
   String get navWishlist;
@@ -504,6 +510,12 @@ class EnStrings extends AppStrings {
   @override String get statsBestScore => 'Best score';
   @override String get statsGames => 'Games';
   @override String get statsFilterTitle => 'Filter sessions';
+  @override String get statsHeadToHead => 'Head-to-head';
+  @override String get statsSelectPlayer => 'Select player...';
+  @override String get statsViewRivalry => 'Compare';
+  @override String get statsTogetherSessions => 'Together';
+  @override String get statsDraws => 'Draws';
+  @override String get statsNeverPlayedTogether => 'These players have never played together.';
 
   // Wishlist
   @override String get navWishlist => 'Wishlist';
@@ -784,6 +796,12 @@ class PlStrings extends AppStrings {
   @override String get statsBestScore => 'Najlepszy wynik';
   @override String get statsGames => 'Gry';
   @override String get statsFilterTitle => 'Filtruj sesje';
+  @override String get statsHeadToHead => 'Twarzą w twarz';
+  @override String get statsSelectPlayer => 'Wybierz gracza...';
+  @override String get statsViewRivalry => 'Porównaj';
+  @override String get statsTogetherSessions => 'Razem';
+  @override String get statsDraws => 'Remisy';
+  @override String get statsNeverPlayedTogether => 'Ci gracze nigdy razem nie grali.';
 
   // Wishlist
   @override String get navWishlist => 'Życzenia';
