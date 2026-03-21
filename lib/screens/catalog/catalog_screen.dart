@@ -2,15 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
+import '../../providers/wishlist_provider.dart';
 import '../../models/board_game.dart';
+import '../../models/wishlist_item.dart';
 import 'add_game_screen.dart';
 import 'game_detail_screen.dart';
+import '../wishlist/add_wishlist_item_screen.dart';
+import '../wishlist/wishlist_screen.dart' show WishlistCard, WishlistGridCard;
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 enum _ViewMode { list, grid }
 
 enum _SortOrder { az, za, recentlyAdded, myRating }
+
+enum _WishlistSortOrder { az, za, priority, recentlyAdded, priceLow, priceHigh }
 
 // ─── Filter state ─────────────────────────────────────────────────────────────
 
@@ -85,6 +91,39 @@ List<BoardGame> _applySortOrder(List<BoardGame> games, _SortOrder sort) {
   return list;
 }
 
+// ─── Wishlist sort helper ─────────────────────────────────────────────────────
+
+List<WishlistItem> _applyWishlistSort(
+    List<WishlistItem> items, _WishlistSortOrder sort) {
+  final list = List<WishlistItem>.from(items);
+  switch (sort) {
+    case _WishlistSortOrder.az:
+      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    case _WishlistSortOrder.za:
+      list.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+    case _WishlistSortOrder.priority:
+      list.sort((a, b) {
+        final pc = b.priority.compareTo(a.priority);
+        return pc != 0 ? pc : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+    case _WishlistSortOrder.recentlyAdded:
+      list.sort((a, b) => b.addedAt.compareTo(a.addedAt));
+    case _WishlistSortOrder.priceLow:
+      list.sort((a, b) {
+        final pa = a.price ?? double.infinity;
+        final pb = b.price ?? double.infinity;
+        return pa.compareTo(pb);
+      });
+    case _WishlistSortOrder.priceHigh:
+      list.sort((a, b) {
+        final pa = a.price ?? -1;
+        final pb = b.price ?? -1;
+        return pb.compareTo(pa);
+      });
+  }
+  return list;
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 class CatalogScreen extends StatefulWidget {
@@ -94,15 +133,30 @@ class CatalogScreen extends StatefulWidget {
   State<CatalogScreen> createState() => _CatalogScreenState();
 }
 
-class _CatalogScreenState extends State<CatalogScreen> {
+class _CatalogScreenState extends State<CatalogScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
   _Filters _filters = const _Filters();
   _ViewMode _viewMode = _ViewMode.list;
   _SortOrder _sortOrder = _SortOrder.recentlyAdded;
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
+  // Wishlist tab state
+  _ViewMode _wishlistViewMode = _ViewMode.list;
+  _WishlistSortOrder _wishlistSortOrder = _WishlistSortOrder.priority;
+  int? _wishlistPriorityFilter; // null = all, 1/2/3 = filter by priority
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() => setState(() {}));
+  }
+
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -121,173 +175,382 @@ class _CatalogScreenState extends State<CatalogScreen> {
     );
   }
 
+  void _showWishlistFilterSheet(BuildContext context) {
+    final s = context.read<LanguageProvider>().strings;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          int? selected = _wishlistPriorityFilter;
+          return Padding(
+            padding: EdgeInsets.fromLTRB(16, 20, 16,
+                16 + MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(s.wishlistFilterByPriority,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    TextButton(
+                      onPressed: () => setModalState(() => selected = null),
+                      child: Text(s.catalogFilterClearAll),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    FilterChip(
+                      label: Text(s.wishlistPriorityHigh),
+                      selected: selected == 3,
+                      onSelected: (_) => setModalState(
+                          () => selected = selected == 3 ? null : 3),
+                    ),
+                    FilterChip(
+                      label: Text(s.wishlistPriorityMedium),
+                      selected: selected == 2,
+                      onSelected: (_) => setModalState(
+                          () => selected = selected == 2 ? null : 2),
+                    ),
+                    FilterChip(
+                      label: Text(s.wishlistPriorityLow),
+                      selected: selected == 1,
+                      onSelected: (_) => setModalState(
+                          () => selected = selected == 1 ? null : 1),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      setState(() => _wishlistPriorityFilter = selected);
+                      Navigator.pop(ctx);
+                    },
+                    child: Text(s.apply),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
-    final sortItems = <PopupMenuEntry<_SortOrder>>[
-      PopupMenuItem(value: _SortOrder.az, child: Text(s.catalogSortAZ)),
-      PopupMenuItem(value: _SortOrder.za, child: Text(s.catalogSortZA)),
-      PopupMenuItem(value: _SortOrder.recentlyAdded, child: Text(s.catalogSortRecentlyAdded)),
-      PopupMenuItem(value: _SortOrder.myRating, child: Text(s.catalogSortMyRating)),
-    ];
+    final isCollection = _tabController.index == 0;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(s.catalogTitle),
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(_viewMode == _ViewMode.list
-              ? Icons.grid_view
-              : Icons.view_list),
-          tooltip: _viewMode == _ViewMode.list ? 'Grid view' : 'List view',
-          onPressed: () => setState(() => _viewMode =
-              _viewMode == _ViewMode.list ? _ViewMode.grid : _ViewMode.list),
-        ),
-        actions: [
-          // Sort
-          PopupMenuButton<_SortOrder>(
-            icon: const Icon(Icons.sort),
-            onSelected: (v) => setState(() => _sortOrder = v),
-            itemBuilder: (_) => sortItems,
+          icon: Icon(
+            isCollection
+                ? (_viewMode == _ViewMode.list
+                    ? Icons.grid_view
+                    : Icons.view_list)
+                : (_wishlistViewMode == _ViewMode.list
+                    ? Icons.grid_view
+                    : Icons.view_list),
           ),
-          // Filter
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.filter_list),
-                onPressed: () => _showFilterSheet(
-                    context, context.read<GameProvider>().games),
-              ),
-              if (_filters.isActive)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+          onPressed: () => setState(() {
+            if (isCollection) {
+              _viewMode = _viewMode == _ViewMode.list
+                  ? _ViewMode.grid
+                  : _ViewMode.list;
+            } else {
+              _wishlistViewMode = _wishlistViewMode == _ViewMode.list
+                  ? _ViewMode.grid
+                  : _ViewMode.list;
+            }
+          }),
+        ),
+        actions: isCollection
+            ? [
+                PopupMenuButton<_SortOrder>(
+                  icon: const Icon(Icons.sort),
+                  onSelected: (v) => setState(() => _sortOrder = v),
+                  itemBuilder: (_) => [
+                    PopupMenuItem(value: _SortOrder.az, child: Text(s.catalogSortAZ)),
+                    PopupMenuItem(value: _SortOrder.za, child: Text(s.catalogSortZA)),
+                    PopupMenuItem(value: _SortOrder.recentlyAdded, child: Text(s.catalogSortRecentlyAdded)),
+                    PopupMenuItem(value: _SortOrder.myRating, child: Text(s.catalogSortMyRating)),
+                  ],
                 ),
+                Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.filter_list),
+                      onPressed: () => _showFilterSheet(
+                          context, context.read<GameProvider>().games),
+                    ),
+                    if (_filters.isActive)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.secondary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ]
+            : [
+                PopupMenuButton<_WishlistSortOrder>(
+                  icon: const Icon(Icons.sort),
+                  onSelected: (v) => setState(() => _wishlistSortOrder = v),
+                  itemBuilder: (_) => [
+                    PopupMenuItem(value: _WishlistSortOrder.priority, child: Text(s.wishlistSortPriority)),
+                    PopupMenuItem(value: _WishlistSortOrder.az, child: Text(s.catalogSortAZ)),
+                    PopupMenuItem(value: _WishlistSortOrder.za, child: Text(s.catalogSortZA)),
+                    PopupMenuItem(value: _WishlistSortOrder.recentlyAdded, child: Text(s.catalogSortRecentlyAdded)),
+                    PopupMenuItem(value: _WishlistSortOrder.priceLow, child: Text(s.wishlistSortPriceLow)),
+                    PopupMenuItem(value: _WishlistSortOrder.priceHigh, child: Text(s.wishlistSortPriceHigh)),
+                  ],
+                ),
+                Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.filter_list),
+                      onPressed: () => _showWishlistFilterSheet(context),
+                    ),
+                    if (_wishlistPriorityFilter != null)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.secondary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: s.catalogTabCollection),
+            Tab(text: s.catalogTabWishlist),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // ── Collection tab ──────────────────────────────────────────────
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: s.catalogSearchHint,
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                ),
+              ),
+              Expanded(
+                child: Consumer<GameProvider>(
+                  builder: (context, provider, _) {
+                    if (provider.games.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.casino_outlined,
+                                size: 64, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            Text(s.catalogEmpty,
+                                style: const TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final q = _searchQuery.toLowerCase();
+                    var filtered = provider.games.where((g) {
+                      if (!_filters.matches(g)) return false;
+                      if (q.isNotEmpty && !g.name.toLowerCase().contains(q))
+                        return false;
+                      return true;
+                    }).toList();
+
+                    if (filtered.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.filter_list_off,
+                                size: 64, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            Text(s.catalogNoResults,
+                                style: const TextStyle(color: Colors.grey)),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: () => setState(() {
+                                _filters = const _Filters();
+                                _searchQuery = '';
+                                _searchController.clear();
+                              }),
+                              child: Text(s.catalogClearFilters),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    filtered = _applySortOrder(filtered, _sortOrder);
+
+                    if (_viewMode == _ViewMode.grid) {
+                      return GridView.builder(
+                        padding: const EdgeInsets.all(8),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.82,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) =>
+                            _GameGridCard(game: filtered[index]),
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.all(8),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) =>
+                          _GameCard(game: filtered[index]),
+                    );
+                  },
+                ),
+              ),
             ],
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: s.catalogSearchHint,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
-                isDense: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-              onChanged: (v) => setState(() => _searchQuery = v.trim()),
-            ),
-          ),
-          Expanded(
-            child: Consumer<GameProvider>(
-              builder: (context, provider, _) {
-                if (provider.games.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.casino_outlined,
-                            size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        Text(s.catalogEmpty,
-                            style: const TextStyle(color: Colors.grey)),
-                      ],
-                    ),
-                  );
-                }
 
-                final q = _searchQuery.toLowerCase();
-                var filtered = provider.games.where((g) {
-                  if (!_filters.matches(g)) return false;
-                  if (q.isNotEmpty && !g.name.toLowerCase().contains(q))
-                    return false;
-                  return true;
-                }).toList();
+          // ── Wishlist tab ────────────────────────────────────────────────
+          Consumer<WishlistProvider>(
+            builder: (context, wishlist, _) {
+              if (wishlist.items.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.bookmark_border,
+                          size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      Text(s.wishlistEmpty,
+                          style: const TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                );
+              }
 
-                if (filtered.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.filter_list_off,
-                            size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        Text(s.catalogNoResults,
-                            style: const TextStyle(color: Colors.grey)),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () => setState(() {
-                            _filters = const _Filters();
-                            _searchQuery = '';
-                            _searchController.clear();
-                          }),
-                          child: Text(s.catalogClearFilters),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+              var filtered = wishlist.items.where((item) {
+                if (_wishlistPriorityFilter != null &&
+                    item.priority != _wishlistPriorityFilter) return false;
+                return true;
+              }).toList();
 
-                filtered = _applySortOrder(filtered, _sortOrder);
+              if (filtered.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.filter_list_off,
+                          size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      Text(s.wishlistNoResults,
+                          style: const TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () => setState(
+                            () => _wishlistPriorityFilter = null),
+                        child: Text(s.wishlistClearFilters),
+                      ),
+                    ],
+                  ),
+                );
+              }
 
-                if (_viewMode == _ViewMode.grid) {
-                  return GridView.builder(
-                    padding: const EdgeInsets.all(8),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.82,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                    ),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) =>
-                        _GameGridCard(game: filtered[index]),
-                  );
-                }
+              filtered = _applyWishlistSort(filtered, _wishlistSortOrder);
 
-                return ListView.builder(
+              if (_wishlistViewMode == _ViewMode.grid) {
+                return GridView.builder(
                   padding: const EdgeInsets.all(8),
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.78,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) =>
-                      _GameCard(game: filtered[index]),
+                      WishlistGridCard(item: filtered[index]),
                 );
-              },
-            ),
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(8),
+                itemCount: filtered.length,
+                itemBuilder: (context, index) =>
+                    WishlistCard(item: filtered[index]),
+              );
+            },
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const AddGameScreen()),
+          MaterialPageRoute(
+            builder: (_) => isCollection
+                ? const AddGameScreen()
+                : const AddWishlistItemScreen(),
+          ),
         ),
         icon: const Icon(Icons.add),
-        label: Text(s.catalogAddGame),
+        label: Text(isCollection ? s.catalogAddGame : s.wishlistAddItem),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import '../models/board_game.dart';
 import '../models/game_session.dart';
 import '../models/player_result.dart';
+import '../models/wishlist_item.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -21,7 +22,7 @@ class DatabaseHelper {
     final path = join(dbPath, 'board_game_manager.db');
     return openDatabase(
       path,
-      version: 6,
+      version: 8,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -53,6 +54,26 @@ class DatabaseHelper {
     if (oldVersion < 6) {
       await db.execute('ALTER TABLE games ADD COLUMN my_rating REAL');
       await db.execute('ALTER TABLE games ADD COLUMN my_weight REAL');
+    }
+    if (oldVersion < 7) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS wishlist (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          note TEXT,
+          priority INTEGER NOT NULL DEFAULT 2,
+          image_url TEXT,
+          thumbnail_url TEXT,
+          bgg_rating REAL,
+          complexity REAL,
+          min_players INTEGER,
+          max_players INTEGER,
+          added_at TEXT NOT NULL
+        )
+      ''');
+    }
+    if (oldVersion < 8) {
+      await db.execute('ALTER TABLE wishlist ADD COLUMN price REAL');
     }
   }
 
@@ -88,6 +109,23 @@ class DatabaseHelper {
         duration_seconds INTEGER NOT NULL,
         notes TEXT,
         is_from_collection INTEGER NOT NULL DEFAULT 1
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE wishlist (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        note TEXT,
+        priority INTEGER NOT NULL DEFAULT 2,
+        image_url TEXT,
+        thumbnail_url TEXT,
+        bgg_rating REAL,
+        complexity REAL,
+        min_players INTEGER,
+        max_players INTEGER,
+        price REAL,
+        added_at TEXT NOT NULL
       )
     ''');
 
@@ -163,5 +201,30 @@ class DatabaseHelper {
     await db.delete('player_results',
         where: 'session_id = ?', whereArgs: [id]);
     await db.delete('sessions', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // --- Wishlist ---
+
+  Future<void> insertWishlistItem(WishlistItem item) async {
+    final db = await database;
+    await db.insert('wishlist', item.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<WishlistItem>> getWishlistItems() async {
+    final db = await database;
+    final maps = await db.query('wishlist', orderBy: 'priority DESC, name ASC');
+    return maps.map(WishlistItem.fromMap).toList();
+  }
+
+  Future<void> updateWishlistItem(WishlistItem item) async {
+    final db = await database;
+    await db.update('wishlist', item.toMap(),
+        where: 'id = ?', whereArgs: [item.id]);
+  }
+
+  Future<void> deleteWishlistItem(String id) async {
+    final db = await database;
+    await db.delete('wishlist', where: 'id = ?', whereArgs: [id]);
   }
 }

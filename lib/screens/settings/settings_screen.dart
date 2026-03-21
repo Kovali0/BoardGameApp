@@ -174,6 +174,81 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                   const Divider(height: 1),
+                  // Currency
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(s.settingsCurrency,
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 13)),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            _CurrencyChip(
+                              label: 'PLN  zł',
+                              selected: settings.currency == AppCurrency.pln,
+                              onTap: () => settings.setCurrency(AppCurrency.pln),
+                            ),
+                            _CurrencyChip(
+                              label: 'EUR  €',
+                              selected: settings.currency == AppCurrency.eur,
+                              onTap: () => settings.setCurrency(AppCurrency.eur),
+                            ),
+                            _CurrencyChip(
+                              label: 'USD  \$',
+                              selected: settings.currency == AppCurrency.usd,
+                              onTap: () => settings.setCurrency(AppCurrency.usd),
+                            ),
+                            _CurrencyChip(
+                              label: 'GBP  £',
+                              selected: settings.currency == AppCurrency.gbp,
+                              onTap: () => settings.setCurrency(AppCurrency.gbp),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // Price search engine
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(s.settingsPriceSearch,
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 13)),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            _CurrencyChip(
+                              label: '🌐  Google',
+                              selected: settings.priceSearch == AppPriceSearch.google,
+                              onTap: () => settings.setPriceSearch(AppPriceSearch.google),
+                            ),
+                            _CurrencyChip(
+                              label: '📦  Amazon',
+                              selected: settings.priceSearch == AppPriceSearch.amazon,
+                              onTap: () => settings.setPriceSearch(AppPriceSearch.amazon),
+                            ),
+                            _CurrencyChip(
+                              label: '🛒  Ceneo',
+                              selected: settings.priceSearch == AppPriceSearch.ceneo,
+                              onTap: () => settings.setPriceSearch(AppPriceSearch.ceneo),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
                   // Timer feedback
                   SwitchListTile(
                     title: Text(s.settingsTimerFeedback),
@@ -423,6 +498,29 @@ class _DefaultPlayersTileState extends State<_DefaultPlayersTile> {
             ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Currency chip ────────────────────────────────────────────────────────────
+
+class _CurrencyChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _CurrencyChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FilterChip(
+      label: Text(label, style: const TextStyle(fontFamily: 'monospace')),
+      selected: selected,
+      onSelected: (_) => onTap(),
     );
   }
 }

@@ -5,10 +5,16 @@ enum AppThemeMode { system, light, dark }
 
 enum AppDateFormat { dmy, mdy, ymd }
 
+enum AppCurrency { pln, eur, usd, gbp }
+
+enum AppPriceSearch { google, amazon, ceneo }
+
 class SettingsProvider extends ChangeNotifier {
   AppThemeMode _themeMode = AppThemeMode.system;
   Color _seedColor = const Color(0xFF8B4513);
   AppDateFormat _dateFormat = AppDateFormat.dmy;
+  AppCurrency _currency = AppCurrency.pln;
+  AppPriceSearch _priceSearch = AppPriceSearch.google;
   List<String> _defaultPlayers = [];
   bool _timerFeedbackEnabled = true;
 
@@ -26,8 +32,24 @@ class SettingsProvider extends ChangeNotifier {
   AppThemeMode get themeMode => _themeMode;
   Color get seedColor => _seedColor;
   AppDateFormat get dateFormat => _dateFormat;
+  AppCurrency get currency => _currency;
+  AppPriceSearch get priceSearch => _priceSearch;
   List<String> get defaultPlayers => List.unmodifiable(_defaultPlayers);
   bool get timerFeedbackEnabled => _timerFeedbackEnabled;
+
+  String get currencySymbol => switch (_currency) {
+    AppCurrency.pln => 'zł',
+    AppCurrency.eur => '€',
+    AppCurrency.usd => '\$',
+    AppCurrency.gbp => '£',
+  };
+
+  String get currencyCode => switch (_currency) {
+    AppCurrency.pln => 'PLN',
+    AppCurrency.eur => 'EUR',
+    AppCurrency.usd => 'USD',
+    AppCurrency.gbp => 'GBP',
+  };
 
   ThemeMode get flutterThemeMode => switch (_themeMode) {
     AppThemeMode.system => ThemeMode.system,
@@ -68,6 +90,19 @@ class SettingsProvider extends ChangeNotifier {
       'mdy' => AppDateFormat.mdy,
       'ymd' => AppDateFormat.ymd,
       _     => AppDateFormat.dmy,
+    };
+
+    _priceSearch = switch (prefs.getString('price_search') ?? 'google') {
+      'amazon' => AppPriceSearch.amazon,
+      'ceneo'  => AppPriceSearch.ceneo,
+      _        => AppPriceSearch.google,
+    };
+
+    _currency = switch (prefs.getString('currency') ?? 'pln') {
+      'eur' => AppCurrency.eur,
+      'usd' => AppCurrency.usd,
+      'gbp' => AppCurrency.gbp,
+      _     => AppCurrency.pln,
     };
 
     _defaultPlayers = prefs.getStringList('default_players') ?? [];
@@ -123,6 +158,31 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('default_players', _defaultPlayers);
+  }
+
+  Future<void> setPriceSearch(AppPriceSearch engine) async {
+    if (_priceSearch == engine) return;
+    _priceSearch = engine;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('price_search', switch (engine) {
+      AppPriceSearch.amazon => 'amazon',
+      AppPriceSearch.ceneo  => 'ceneo',
+      AppPriceSearch.google => 'google',
+    });
+  }
+
+  Future<void> setCurrency(AppCurrency currency) async {
+    if (_currency == currency) return;
+    _currency = currency;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('currency', switch (currency) {
+      AppCurrency.eur => 'eur',
+      AppCurrency.usd => 'usd',
+      AppCurrency.gbp => 'gbp',
+      AppCurrency.pln => 'pln',
+    });
   }
 
   Future<void> setTimerFeedbackEnabled(bool value) async {

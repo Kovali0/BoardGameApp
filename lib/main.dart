@@ -4,6 +4,7 @@ import 'providers/game_provider.dart';
 import 'providers/session_provider.dart';
 import 'providers/language_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/wishlist_provider.dart';
 import 'screens/splash_screen.dart';
 
 void main() {
@@ -14,6 +15,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => SessionProvider()),
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => WishlistProvider()),
       ],
       child: const BoardGameApp(),
     ),

@@ -43,6 +43,8 @@ abstract class AppStrings {
   String get catalogFilterStatus;
   String get catalogFilterNotPlayed;
   String catalogGamePlayers(int min, int max);
+  String get catalogTabCollection;
+  String get catalogTabWishlist;
   String get catalogSortAZ;
   String get catalogSortZA;
   String get catalogSortRecentlyAdded;
@@ -217,6 +219,37 @@ abstract class AppStrings {
   String get statsGames;
   String get statsFilterTitle;
 
+  // Wishlist
+  String get navWishlist;
+  String get wishlistTitle;
+  String get wishlistEmpty;
+  String get wishlistAddItem;
+  String get wishlistAddTitle;
+  String get wishlistEditTitle;
+  String get wishlistNameLabel;
+  String get wishlistNoteLabel;
+  String get wishlistNoteHint;
+  String get wishlistPriority;
+  String get wishlistPriorityLow;
+  String get wishlistPriorityMedium;
+  String get wishlistPriorityHigh;
+  String get wishlistMoveToCollection;
+  String get wishlistMoveConfirmTitle;
+  String wishlistMoveConfirmContent(String name);
+  String get wishlistDeleteTitle;
+  String wishlistDeleteContent(String name);
+  String get wishlistBggFilled;
+  String get wishlistSave;
+  String get wishlistPriceLabel;
+  String get wishlistSearchOnline;
+  String get wishlistSearchSuffix; // appended to game name when searching
+  String get wishlistSortPriority;
+  String get wishlistSortPriceLow;
+  String get wishlistSortPriceHigh;
+  String get wishlistNoResults;
+  String get wishlistClearFilters;
+  String get wishlistFilterByPriority;
+
   // Settings
   String get settingsTitle;
   String get settingsAppearance;
@@ -239,6 +272,8 @@ abstract class AppStrings {
   String get settingsVersion;
   String get settingsBggCredit;
   String get settingsBuiltWith;
+  String get settingsCurrency;
+  String get settingsPriceSearch;
 }
 
 // ─── English ──────────────────────────────────────────────────────────────────
@@ -286,6 +321,8 @@ class EnStrings extends AppStrings {
   @override String get catalogFilterStatus => 'Status';
   @override String get catalogFilterNotPlayed => 'Not played yet';
   @override String catalogGamePlayers(int min, int max) => '$min–$max players';
+  @override String get catalogTabCollection => 'Collection';
+  @override String get catalogTabWishlist => 'Wishlist';
   @override String get catalogSortAZ => 'A → Z';
   @override String get catalogSortZA => 'Z → A';
   @override String get catalogSortRecentlyAdded => 'Recently added';
@@ -468,6 +505,39 @@ class EnStrings extends AppStrings {
   @override String get statsGames => 'Games';
   @override String get statsFilterTitle => 'Filter sessions';
 
+  // Wishlist
+  @override String get navWishlist => 'Wishlist';
+  @override String get wishlistTitle => 'Wishlist';
+  @override String get wishlistEmpty => 'No games on your wishlist yet.';
+  @override String get wishlistAddItem => 'Add to Wishlist';
+  @override String get wishlistAddTitle => 'Add to Wishlist';
+  @override String get wishlistEditTitle => 'Edit Wishlist Item';
+  @override String get wishlistNameLabel => 'Game Name *';
+  @override String get wishlistNoteLabel => 'Note (optional)';
+  @override String get wishlistNoteHint => 'e.g. "Wait for sale", "Ask for birthday"...';
+  @override String get wishlistPriority => 'Priority';
+  @override String get wishlistPriorityLow => 'Low';
+  @override String get wishlistPriorityMedium => 'Medium';
+  @override String get wishlistPriorityHigh => 'High';
+  @override String get wishlistMoveToCollection => 'Move to Collection';
+  @override String get wishlistMoveConfirmTitle => 'Move to Collection?';
+  @override String wishlistMoveConfirmContent(String name) =>
+      '"$name" will be added to your collection and removed from the wishlist.';
+  @override String get wishlistDeleteTitle => 'Remove from Wishlist?';
+  @override String wishlistDeleteContent(String name) =>
+      'Remove "$name" from your wishlist?';
+  @override String get wishlistBggFilled => 'Details filled from BGG';
+  @override String get wishlistSave => 'Save';
+  @override String get wishlistPriceLabel => 'Target price (optional)';
+  @override String get wishlistSearchOnline => 'Search online';
+  @override String get wishlistSearchSuffix => 'board game';
+  @override String get wishlistSortPriority => 'Priority (high first)';
+  @override String get wishlistSortPriceLow => 'Price: low → high';
+  @override String get wishlistSortPriceHigh => 'Price: high → low';
+  @override String get wishlistNoResults => 'No items match your filters.';
+  @override String get wishlistClearFilters => 'Clear filters';
+  @override String get wishlistFilterByPriority => 'Filter by priority';
+
   // Settings
   @override String get settingsTitle => 'Settings';
   @override String get settingsAppearance => 'APPEARANCE';
@@ -490,6 +560,8 @@ class EnStrings extends AppStrings {
   @override String get settingsVersion => 'Version 1.0.0';
   @override String get settingsBggCredit => 'Board game data powered by BoardGameGeek';
   @override String get settingsBuiltWith => 'Built with Flutter ❤️';
+  @override String get settingsCurrency => 'Currency';
+  @override String get settingsPriceSearch => 'Price search engine';
 }
 
 // ─── Polish ───────────────────────────────────────────────────────────────────
@@ -537,6 +609,8 @@ class PlStrings extends AppStrings {
   @override String get catalogFilterStatus => 'Status';
   @override String get catalogFilterNotPlayed => 'Jeszcze nie grana';
   @override String catalogGamePlayers(int min, int max) => '$min–$max graczy';
+  @override String get catalogTabCollection => 'Kolekcja';
+  @override String get catalogTabWishlist => 'Życzenia';
   @override String get catalogSortAZ => 'A → Z';
   @override String get catalogSortZA => 'Z → A';
   @override String get catalogSortRecentlyAdded => 'Ostatnio dodane';
@@ -711,6 +785,39 @@ class PlStrings extends AppStrings {
   @override String get statsGames => 'Gry';
   @override String get statsFilterTitle => 'Filtruj sesje';
 
+  // Wishlist
+  @override String get navWishlist => 'Życzenia';
+  @override String get wishlistTitle => 'Lista życzeń';
+  @override String get wishlistEmpty => 'Twoja lista życzeń jest pusta.';
+  @override String get wishlistAddItem => 'Dodaj do listy';
+  @override String get wishlistAddTitle => 'Dodaj do listy życzeń';
+  @override String get wishlistEditTitle => 'Edytuj pozycję';
+  @override String get wishlistNameLabel => 'Nazwa gry *';
+  @override String get wishlistNoteLabel => 'Notatka (opcjonalnie)';
+  @override String get wishlistNoteHint => 'np. "Poczekaj na wyprzedaż", "Poproś na urodziny"...';
+  @override String get wishlistPriority => 'Priorytet';
+  @override String get wishlistPriorityLow => 'Niski';
+  @override String get wishlistPriorityMedium => 'Średni';
+  @override String get wishlistPriorityHigh => 'Wysoki';
+  @override String get wishlistMoveToCollection => 'Przenieś do kolekcji';
+  @override String get wishlistMoveConfirmTitle => 'Przenieść do kolekcji?';
+  @override String wishlistMoveConfirmContent(String name) =>
+      '"$name" zostanie dodana do kolekcji i usunięta z listy życzeń.';
+  @override String get wishlistDeleteTitle => 'Usunąć z listy życzeń?';
+  @override String wishlistDeleteContent(String name) =>
+      'Usunąć "$name" z listy życzeń?';
+  @override String get wishlistBggFilled => 'Szczegóły pobrane z BGG';
+  @override String get wishlistSave => 'Zapisz';
+  @override String get wishlistPriceLabel => 'Docelowa cena (opcjonalnie)';
+  @override String get wishlistSearchOnline => 'Szukaj online';
+  @override String get wishlistSearchSuffix => 'gra planszowa';
+  @override String get wishlistSortPriority => 'Priorytet (wysoki najpierw)';
+  @override String get wishlistSortPriceLow => 'Cena: niska → wysoka';
+  @override String get wishlistSortPriceHigh => 'Cena: wysoka → niska';
+  @override String get wishlistNoResults => 'Żadne pozycje nie pasują do filtrów.';
+  @override String get wishlistClearFilters => 'Wyczyść filtry';
+  @override String get wishlistFilterByPriority => 'Filtruj po priorytecie';
+
   // Settings
   @override String get settingsTitle => 'Ustawienia';
   @override String get settingsAppearance => 'WYGLĄD';
@@ -733,4 +840,6 @@ class PlStrings extends AppStrings {
   @override String get settingsVersion => 'Wersja 1.0.0';
   @override String get settingsBggCredit => 'Dane gier dostarczone przez BoardGameGeek';
   @override String get settingsBuiltWith => 'Stworzone z Flutter ❤️';
+  @override String get settingsCurrency => 'Waluta';
+  @override String get settingsPriceSearch => 'Wyszukiwarka cen';
 }

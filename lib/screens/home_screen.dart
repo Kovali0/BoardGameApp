@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../providers/session_provider.dart';
 import '../providers/language_provider.dart';
+import '../providers/wishlist_provider.dart';
 import 'catalog/catalog_screen.dart';
 import 'session/play_landing_screen.dart';
 import 'history/history_screen.dart';
@@ -30,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await gameProvider.autoMarkFromSessions(
         sessionProvider.sessions.map((s) => s.gameId),
       );
+      await context.read<WishlistProvider>().loadItems();
     });
   }
 
