@@ -9,7 +9,15 @@ import 'random_starter_screen.dart';
 
 class NewSessionScreen extends StatefulWidget {
   final BoardGame? preselectedGame;
-  const NewSessionScreen({super.key, this.preselectedGame});
+  final List<String>? prefilledPlayers;
+  final String? prefilledGuestGameName;
+
+  const NewSessionScreen({
+    super.key,
+    this.preselectedGame,
+    this.prefilledPlayers,
+    this.prefilledGuestGameName,
+  });
 
   @override
   State<NewSessionScreen> createState() => _NewSessionScreenState();
@@ -18,15 +26,33 @@ class NewSessionScreen extends StatefulWidget {
 class _NewSessionScreenState extends State<NewSessionScreen> {
   bool _isGuestGame = false;
   BoardGame? _selectedGame;
-  final _guestGameNameController = TextEditingController();
+  late final TextEditingController _guestGameNameController;
   final List<TextEditingController> _playerControllers = [];
 
   @override
   void initState() {
     super.initState();
     _selectedGame = widget.preselectedGame;
-    _playerControllers.add(TextEditingController());
-    _playerControllers.add(TextEditingController());
+
+    if (widget.prefilledGuestGameName != null) {
+      _isGuestGame = true;
+      _guestGameNameController =
+          TextEditingController(text: widget.prefilledGuestGameName);
+    } else {
+      _guestGameNameController = TextEditingController();
+    }
+
+    if (widget.prefilledPlayers != null && widget.prefilledPlayers!.isNotEmpty) {
+      for (final name in widget.prefilledPlayers!) {
+        _playerControllers.add(TextEditingController(text: name));
+      }
+      while (_playerControllers.length < 2) {
+        _playerControllers.add(TextEditingController());
+      }
+    } else {
+      _playerControllers.add(TextEditingController());
+      _playerControllers.add(TextEditingController());
+    }
   }
 
   @override

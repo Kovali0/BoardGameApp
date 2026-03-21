@@ -84,6 +84,9 @@ abstract class AppStrings {
   String get gameDetailPlayHistory;
   String get gameDetailNoSessions;
   String get gameDetailPlayNow;
+  String get rematch;
+  String get gameResultsTitle;
+  String get gameResultsClose;
   String get deleteGameTitle;
   String deleteGameContent(String name);
 
@@ -356,6 +359,9 @@ class EnStrings extends AppStrings {
   @override String get addGameMyWeightLabel => 'My Weight (1–5)';
   @override String get addGameSetupHintsLabel => 'Setup Hints';
   @override String get addGameSetupHintsHint => 'e.g. 1. Place board in center\n2. Deal 5 cards each...';
+  @override String get rematch => 'Rematch';
+  @override String get gameResultsTitle => 'Game Results';
+  @override String get gameResultsClose => 'Close';
   @override String get addGameButton => 'Add Game';
   @override String get saveChangesButton => 'Save Changes';
   @override String get addGameBggError => 'Could not fill game details';
@@ -650,6 +656,9 @@ class PlStrings extends AppStrings {
   @override String get addGameMyWeightLabel => 'Moja złożoność (1–5)';
   @override String get addGameSetupHintsLabel => 'Wskazówki do ustawienia';
   @override String get addGameSetupHintsHint => 'np. 1. Połóż planszę na środku\n2. Rozdaj 5 kart każdemu...';
+  @override String get rematch => 'Rewanż';
+  @override String get gameResultsTitle => 'Wyniki gry';
+  @override String get gameResultsClose => 'Zamknij';
   @override String get addGameButton => 'Dodaj grę';
   @override String get saveChangesButton => 'Zapisz zmiany';
   @override String get addGameBggError => 'Nie udało się pobrać danych gry';

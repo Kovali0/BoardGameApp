@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/game_session.dart';
+import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../session/new_session_screen.dart';
 
 class SessionDetailScreen extends StatelessWidget {
   final GameSession session;
@@ -18,6 +20,11 @@ class SessionDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(session.gameName),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.replay),
+            tooltip: context.read<LanguageProvider>().strings.rematch,
+            onPressed: () => _rematch(context),
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: () => _confirmDelete(context),
@@ -83,6 +90,23 @@ class SessionDetailScreen extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  void _rematch(BuildContext context) {
+    final game = context.read<GameProvider>().games
+        .where((g) => g.id == session.gameId)
+        .firstOrNull;
+    final playerNames = session.players.map((p) => p.playerName).toList();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NewSessionScreen(
+          preselectedGame: game,
+          prefilledPlayers: playerNames,
+          prefilledGuestGameName: game == null ? session.gameName : null,
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import '../../models/board_game.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
+import 'game_results_screen.dart';
 
 class EndSessionScreen extends StatefulWidget {
   final BoardGame game;
@@ -183,7 +184,22 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
       await context.read<GameProvider>().markAsPlayed(widget.game.id);
     }
     if (mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => GameResultsScreen(
+            game: widget.isFromCollection ? widget.game : null,
+            gameName: widget.game.name,
+            durationSeconds: widget.durationSeconds,
+            playerResults: _playerData
+                .map((p) => {
+                      'name': p['name'],
+                      'rank': finalRanks[p['name'] as String] ?? 0,
+                      'score': p['score'],
+                    })
+                .toList(),
+          ),
+        ),
+      );
     }
   }
 

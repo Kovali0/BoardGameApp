@@ -6,6 +6,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/game_provider.dart';
 import '../../models/game_session.dart';
 import 'session_detail_screen.dart';
+import '../session/new_session_screen.dart';
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
@@ -276,6 +277,20 @@ class _SessionCard extends StatelessWidget {
   final GameSession session;
   const _SessionCard({required this.session});
 
+  void _rematch(BuildContext context, game) {
+    final playerNames = session.players.map((p) => p.playerName).toList();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NewSessionScreen(
+          preselectedGame: game,
+          prefilledPlayers: playerNames,
+          prefilledGuestGameName: game == null ? session.gameName : null,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final winners =
@@ -301,8 +316,21 @@ class _SessionCard extends StatelessWidget {
         title: Text(session.gameName,
             style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text('${context.watch<LanguageProvider>().strings.historyWinner(winner)}  •  $dateStr'),
-        trailing: Text(session.durationFormatted,
-            style: Theme.of(context).textTheme.bodySmall),
+        trailing: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(session.durationFormatted,
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 2),
+            GestureDetector(
+              onTap: () => _rematch(context, game),
+              child: Icon(Icons.replay,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary),
+            ),
+          ],
+        ),
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(

@@ -7,6 +7,7 @@ import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/settings_provider.dart';
+import 'game_results_screen.dart';
 
 class AddResultsScreen extends StatefulWidget {
   final BoardGame? preselectedGame;
@@ -249,7 +250,16 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
         );
 
     if (mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => GameResultsScreen(
+            game: _isGuestGame ? null : game,
+            gameName: game!.name,
+            durationSeconds: totalSeconds,
+            playerResults: players,
+          ),
+        ),
+      );
     }
   }
 
