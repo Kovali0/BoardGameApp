@@ -25,6 +25,7 @@ class SessionProvider with ChangeNotifier {
     required List<Map<String, dynamic>> playerData,
     String? notes,
     bool isFromCollection = true,
+    List<String> expansionIds = const [],
   }) async {
     final sessionId = _uuid.v4();
     final players = playerData
@@ -48,6 +49,7 @@ class SessionProvider with ChangeNotifier {
       players: players,
       notes: notes,
       isFromCollection: isFromCollection,
+      expansionIds: expansionIds,
     );
     await _db.insertSession(session);
     _sessions.insert(0, session);

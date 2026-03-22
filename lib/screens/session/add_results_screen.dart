@@ -21,6 +21,8 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
   bool _isGuestGame = false;
   BoardGame? _selectedGame;
   final _guestNameController = TextEditingController();
+  final Set<String> _selectedExpansionIds = {};
+  String? _expansionOriginName;
 
   DateTime _date = DateTime.now();
   final _hoursController = TextEditingController(text: '0');
@@ -37,7 +39,20 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
   @override
   void initState() {
     super.initState();
+    // Auto-swap: if preselected game is an expansion, use base game instead
     _selectedGame = widget.preselectedGame;
+    if (widget.preselectedGame?.isExpansion == true &&
+        widget.preselectedGame?.baseGameId != null) {
+      final games = context.read<GameProvider>().games;
+      final baseGame = games
+          .where((g) => g.id == widget.preselectedGame!.baseGameId)
+          .firstOrNull;
+      if (baseGame != null) {
+        _selectedGame = baseGame;
+        _expansionOriginName = widget.preselectedGame!.name;
+        _selectedExpansionIds.add(widget.preselectedGame!.id);
+      }
+    }
     _addPlayerRow();
     _addPlayerRow();
   }
@@ -247,6 +262,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
           playerData: players,
           notes: combinedNotes,
           isFromCollection: !_isGuestGame,
+          expansionIds: _selectedExpansionIds.toList(),
         );
 
     if (mounted) {
@@ -345,7 +361,74 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                   items: provider.games
                       .map((g) => DropdownMenuItem(value: g, child: Text(g.name)))
                       .toList(),
-                  onChanged: (g) => setState(() => _selectedGame = g),
+                  onChanged: (g) => setState(() {
+                    _selectedGame = g;
+                    _selectedExpansionIds.clear();
+                    _expansionOriginName = null;
+                  }),
+                );
+              },
+            ),
+          // Expansion origin banner
+          if (_expansionOriginName != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.deepPurple.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.extension, size: 16, color: Colors.deepPurple.shade400),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      s.expansionOf(_expansionOriginName!),
+                      style: TextStyle(fontSize: 13, color: Colors.deepPurple.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          // Expansion picker for selected base game
+          if (!_isGuestGame && _selectedGame != null)
+            Consumer<GameProvider>(
+              builder: (context, provider, _) {
+                final expansions = provider.games
+                    .where((g) =>
+                        g.isExpansion && g.baseGameId == _selectedGame!.id)
+                    .toList();
+                if (expansions.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+                    Text(s.expansionsTitle,
+                        style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: expansions
+                          .map((exp) => FilterChip(
+                                avatar: const Icon(Icons.extension, size: 14),
+                                label: Text(exp.name),
+                                selected:
+                                    _selectedExpansionIds.contains(exp.id),
+                                onSelected: (v) => setState(() {
+                                  if (v) {
+                                    _selectedExpansionIds.add(exp.id);
+                                  } else {
+                                    _selectedExpansionIds.remove(exp.id);
+                                  }
+                                }),
+                              ))
+                          .toList(),
+                    ),
+                  ],
                 );
               },
             ),

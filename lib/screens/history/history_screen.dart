@@ -22,11 +22,20 @@ List<int> _months(List<GameSession> s, int year) =>
      .map((x) => x.startTime.month).toSet().toList()
      ..sort((a, b) => b.compareTo(a));
 
-List<GameSession> _applyFilter(List<GameSession> all, int? year, int? month) {
-  if (year == null) return all;
-  final byYear = all.where((s) => s.startTime.year == year);
-  if (month == null) return byYear.toList();
-  return byYear.where((s) => s.startTime.month == month).toList();
+List<GameSession> _applyFilter(
+    List<GameSession> all, int? year, int? month,
+    {bool withExpansionsOnly = false}) {
+  var list = all;
+  if (year != null) {
+    list = list.where((s) => s.startTime.year == year).toList();
+    if (month != null) {
+      list = list.where((s) => s.startTime.month == month).toList();
+    }
+  }
+  if (withExpansionsOnly) {
+    list = list.where((s) => s.expansionIds.isNotEmpty).toList();
+  }
+  return list;
 }
 
 List<GameSession> _applySort(List<GameSession> sessions, _HistorySortOrder sort) {
@@ -56,6 +65,7 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   int? _selectedYear;
   int? _selectedMonth;
+  bool _withExpansionsOnly = false;
   _HistorySortOrder _sortOrder = _HistorySortOrder.newest;
 
   void _showFilterSheet(BuildContext context, List<GameSession> allSessions) {
@@ -69,9 +79,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         allSessions: allSessions,
         initialYear: _selectedYear,
         initialMonth: _selectedMonth,
-        onApply: (year, month) => setState(() {
+        initialWithExpansions: _withExpansionsOnly,
+        onApply: (year, month, withExpansions) => setState(() {
           _selectedYear = year;
           _selectedMonth = month;
+          _withExpansionsOnly = withExpansions;
         }),
       ),
     );
@@ -83,10 +95,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final provider = context.watch<SessionProvider>();
     final allSessions = provider.sessions;
     final filteredSessions = _applySort(
-      _applyFilter(allSessions, _selectedYear, _selectedMonth),
+      _applyFilter(allSessions, _selectedYear, _selectedMonth,
+          withExpansionsOnly: _withExpansionsOnly),
       _sortOrder,
     );
-    final filterActive = _selectedYear != null;
+    final filterActive = _selectedYear != null || _withExpansionsOnly;
 
     return Scaffold(
       appBar: AppBar(
@@ -174,12 +187,14 @@ class _FilterSheet extends StatefulWidget {
   final List<GameSession> allSessions;
   final int? initialYear;
   final int? initialMonth;
-  final void Function(int? year, int? month) onApply;
+  final bool initialWithExpansions;
+  final void Function(int? year, int? month, bool withExpansions) onApply;
 
   const _FilterSheet({
     required this.allSessions,
     required this.initialYear,
     required this.initialMonth,
+    required this.initialWithExpansions,
     required this.onApply,
   });
 
@@ -190,12 +205,14 @@ class _FilterSheet extends StatefulWidget {
 class _FilterSheetState extends State<_FilterSheet> {
   int? _year;
   int? _month;
+  bool _withExpansions = false;
 
   @override
   void initState() {
     super.initState();
     _year = widget.initialYear;
     _month = widget.initialMonth;
+    _withExpansions = widget.initialWithExpansions;
   }
 
   @override
@@ -254,12 +271,19 @@ class _FilterSheetState extends State<_FilterSheet> {
               ],
             ),
           ],
+          const SizedBox(height: 12),
+          FilterChip(
+            label: Text(s.historyFilterWithExpansions),
+            avatar: const Icon(Icons.extension, size: 14),
+            selected: _withExpansions,
+            onSelected: (v) => setState(() => _withExpansions = v),
+          ),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
               onPressed: () {
-                widget.onApply(_year, _month);
+                widget.onApply(_year, _month, _withExpansions);
                 Navigator.pop(context);
               },
               child: Text(s.apply),
@@ -286,6 +310,9 @@ class _SessionCard extends StatelessWidget {
           preselectedGame: game,
           prefilledPlayers: playerNames,
           prefilledGuestGameName: game == null ? session.gameName : null,
+          prefilledExpansionIds: session.expansionIds.isNotEmpty
+              ? session.expansionIds
+              : null,
         ),
       ),
     );
@@ -305,6 +332,20 @@ class _SessionCard extends StatelessWidget {
         .firstOrNull;
     final imageUrl = game?.thumbnailUrl ?? game?.imageUrl;
 
+    final expansionNames = session.expansionIds.isEmpty
+        ? <String>[]
+        : session.expansionIds
+            .map((id) => game?.id == id
+                ? null
+                : context
+                    .watch<GameProvider>()
+                    .games
+                    .where((g) => g.id == id)
+                    .firstOrNull
+                    ?.name)
+            .whereType<String>()
+            .toList();
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: ListTile(
@@ -315,7 +356,30 @@ class _SessionCard extends StatelessWidget {
         ),
         title: Text(session.gameName,
             style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${context.watch<LanguageProvider>().strings.historyWinner(winner)}  •  $dateStr'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('${context.watch<LanguageProvider>().strings.historyWinner(winner)}  •  $dateStr'),
+            if (expansionNames.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 4,
+                runSpacing: 2,
+                children: expansionNames
+                    .map((name) => Chip(
+                          label: Text(name,
+                              style: const TextStyle(
+                                  fontSize: 10, color: Colors.white)),
+                          backgroundColor: Colors.deepPurple.shade400,
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ))
+                    .toList(),
+              ),
+            ],
+          ],
+        ),
         trailing: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,

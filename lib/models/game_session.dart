@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'player_result.dart';
 
 class GameSession {
@@ -10,6 +11,7 @@ class GameSession {
   final List<PlayerResult> players;
   final String? notes;
   final bool isFromCollection;
+  final List<String> expansionIds;
 
   const GameSession({
     required this.id,
@@ -21,6 +23,7 @@ class GameSession {
     required this.players,
     this.notes,
     this.isFromCollection = true,
+    this.expansionIds = const [],
   });
 
   String get durationFormatted {
@@ -41,23 +44,33 @@ class GameSession {
         'duration_seconds': durationSeconds,
         'notes': notes,
         'is_from_collection': isFromCollection ? 1 : 0,
+        'expansion_ids': jsonEncode(expansionIds),
       };
 
   factory GameSession.fromMap(
     Map<String, dynamic> map,
     List<PlayerResult> players,
-  ) =>
-      GameSession(
-        id: map['id'] as String,
-        gameId: map['game_id'] as String,
-        gameName: map['game_name'] as String,
-        startTime: DateTime.parse(map['start_time'] as String),
-        endTime: map['end_time'] != null
-            ? DateTime.parse(map['end_time'] as String)
-            : null,
-        durationSeconds: map['duration_seconds'] as int,
-        players: players,
-        notes: map['notes'] as String?,
-        isFromCollection: (map['is_from_collection'] as int? ?? 1) == 1,
-      );
+  ) {
+    List<String> expansionIds = [];
+    final raw = map['expansion_ids'];
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        expansionIds = List<String>.from(jsonDecode(raw) as List);
+      } catch (_) {}
+    }
+    return GameSession(
+      id: map['id'] as String,
+      gameId: map['game_id'] as String,
+      gameName: map['game_name'] as String,
+      startTime: DateTime.parse(map['start_time'] as String),
+      endTime: map['end_time'] != null
+          ? DateTime.parse(map['end_time'] as String)
+          : null,
+      durationSeconds: map['duration_seconds'] as int,
+      players: players,
+      notes: map['notes'] as String?,
+      isFromCollection: (map['is_from_collection'] as int? ?? 1) == 1,
+      expansionIds: expansionIds,
+    );
+  }
 }

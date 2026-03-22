@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/board_game.dart';
 import '../db/database_helper.dart';
+import '../services/bgg_service.dart';
 
 class GameProvider with ChangeNotifier {
   final _db = DatabaseHelper();
@@ -15,7 +16,7 @@ class GameProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addGame({
+  Future<BoardGame> addGame({
     required String name,
     String? description,
     required int minPlayers,
@@ -29,6 +30,9 @@ class GameProvider with ChangeNotifier {
     double? complexity,
     double? myRating,
     double? myWeight,
+    String? bggId,
+    bool isExpansion = false,
+    String? baseGameId,
   }) async {
     final game = BoardGame(
       id: _uuid.v4(),
@@ -47,11 +51,35 @@ class GameProvider with ChangeNotifier {
       complexity: complexity,
       myRating: myRating,
       myWeight: myWeight,
+      bggId: bggId,
+      isExpansion: isExpansion,
+      baseGameId: baseGameId,
     );
     await _db.insertGame(game);
     _games.add(game);
     _games.sort((a, b) => a.name.compareTo(b.name));
     notifyListeners();
+    return game;
+  }
+
+  Future<BoardGame> addExpansion({
+    required BggExpansionItem item,
+    required String baseGameId,
+  }) async {
+    return addGame(
+      name: item.name,
+      minPlayers: item.minPlayers ?? 2,
+      maxPlayers: item.maxPlayers ?? 4,
+      imageUrl: item.imageUrl,
+      thumbnailUrl: item.thumbnailUrl,
+      minPlaytime: item.minPlaytime,
+      maxPlaytime: item.maxPlaytime,
+      bggRating: item.bggRating,
+      complexity: item.complexity,
+      bggId: item.bggId,
+      isExpansion: true,
+      baseGameId: baseGameId,
+    );
   }
 
   Future<void> updateGame(BoardGame game) async {

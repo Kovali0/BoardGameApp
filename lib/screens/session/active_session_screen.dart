@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../models/board_game.dart';
@@ -12,6 +13,7 @@ class ActiveSessionScreen extends StatefulWidget {
   final List<String> players;
   final String starterName;
   final bool isFromCollection;
+  final List<String> expansionIds;
 
   const ActiveSessionScreen({
     super.key,
@@ -19,6 +21,7 @@ class ActiveSessionScreen extends StatefulWidget {
     required this.players,
     required this.starterName,
     this.isFromCollection = true,
+    this.expansionIds = const [],
   });
 
   @override
@@ -116,6 +119,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
           startTime: _startTime,
           durationSeconds: _elapsedSeconds,
           isFromCollection: widget.isFromCollection,
+          expansionIds: widget.expansionIds,
         ),
       ),
     );
@@ -131,7 +135,30 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.game.name),
+          title: widget.expansionIds.isEmpty
+              ? Text(widget.game.name)
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(widget.game.name),
+                    Builder(builder: (context) {
+                      final games = context.watch<GameProvider>().games;
+                      final names = widget.expansionIds
+                          .map((id) => games
+                              .where((g) => g.id == id)
+                              .firstOrNull
+                              ?.name ?? '')
+                          .where((n) => n.isNotEmpty)
+                          .join(', ');
+                      return Text(
+                        '+ $names',
+                        style: const TextStyle(fontSize: 11),
+                        overflow: TextOverflow.ellipsis,
+                      );
+                    }),
+                  ],
+                ),
           automaticallyImplyLeading: false,
           leading: IconButton(
             icon: const Icon(Icons.close),

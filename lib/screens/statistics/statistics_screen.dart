@@ -420,6 +420,8 @@ class _GameStatsData {
   final Map<String, int> playerBestScore = {};
   int? longestSeconds;
   int? shortestSeconds;
+  int sessionsWithExpansions = 0;
+  final Map<String, int> expansionUseCounts = {};
 
   _GameStatsData({required this.name});
 
@@ -480,6 +482,11 @@ class _GamesStatsContent extends StatelessWidget {
           data.playerWins[p.playerName] = (data.playerWins[p.playerName] ?? 0) + 1;
         }
       }
+      if (sess.expansionIds.isNotEmpty) data.sessionsWithExpansions++;
+      for (final expId in sess.expansionIds) {
+        data.expansionUseCounts[expId] =
+            (data.expansionUseCounts[expId] ?? 0) + 1;
+      }
     }
 
     final playedGames = statsMap.values.toList()
@@ -522,7 +529,7 @@ class _GamesStatsContent extends StatelessWidget {
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => _GameDetailScreen(stats: stats),
+                  builder: (_) => _GameDetailScreen(stats: stats, allGames: allGames),
                 )),
               ),
             ),
@@ -566,8 +573,9 @@ class _GamesStatsContent extends StatelessWidget {
 
 class _GameDetailScreen extends StatelessWidget {
   final _GameStatsData stats;
+  final List<BoardGame> allGames;
 
-  const _GameDetailScreen({required this.stats});
+  const _GameDetailScreen({required this.stats, required this.allGames});
 
   @override
   Widget build(BuildContext context) {
@@ -612,6 +620,33 @@ class _GameDetailScreen extends StatelessWidget {
                 if (stats.shortestSeconds != null && stats.sessionCount > 1) ...[
                   const Divider(height: 1),
                   _RecordRow(label: s.statsShortest, value: _formatSeconds(stats.shortestSeconds!)),
+                ],
+                if (stats.sessionsWithExpansions > 0) ...[
+                  const Divider(height: 1),
+                  _RecordRow(
+                    label: s.statsSessionsWithExpansions,
+                    value:
+                        '${stats.sessionsWithExpansions} / ${stats.sessionCount} '
+                        '(${(stats.sessionsWithExpansions / stats.sessionCount * 100).round()}%)',
+                  ),
+                ],
+                if (stats.expansionUseCounts.isNotEmpty) ...[
+                  const Divider(height: 1),
+                  _RecordRow(
+                    label: s.statsMostUsedExpansion,
+                    value: () {
+                      final maxCount = stats.expansionUseCounts.values
+                          .reduce((a, b) => a > b ? a : b);
+                      final topId = stats.expansionUseCounts.entries
+                          .firstWhere((e) => e.value == maxCount)
+                          .key;
+                      return allGames
+                              .where((g) => g.id == topId)
+                              .firstOrNull
+                              ?.name ??
+                          '—';
+                    }(),
+                  ),
                 ],
               ],
             ),

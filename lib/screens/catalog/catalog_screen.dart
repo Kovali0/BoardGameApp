@@ -16,6 +16,8 @@ enum _ViewMode { list, grid }
 
 enum _SortOrder { az, za, recentlyAdded, myRating }
 
+enum _GameTypeFilter { all, baseOnly, expansionsOnly }
+
 enum _WishlistSortOrder { az, za, priority, recentlyAdded, priceLow, priceHigh }
 
 // ─── Filter state ─────────────────────────────────────────────────────────────
@@ -26,6 +28,7 @@ class _Filters {
   final double? minRating;
   final int? weightBucket;
   final bool notPlayedOnly;
+  final _GameTypeFilter gameTypeFilter;
 
   const _Filters({
     this.players,
@@ -33,6 +36,7 @@ class _Filters {
     this.minRating,
     this.weightBucket,
     this.notPlayedOnly = false,
+    this.gameTypeFilter = _GameTypeFilter.all,
   });
 
   bool get isActive =>
@@ -40,9 +44,12 @@ class _Filters {
       maxMinutes != null ||
       minRating != null ||
       weightBucket != null ||
-      notPlayedOnly;
+      notPlayedOnly ||
+      gameTypeFilter != _GameTypeFilter.all;
 
   bool matches(BoardGame g) {
+    if (gameTypeFilter == _GameTypeFilter.baseOnly && g.isExpansion) return false;
+    if (gameTypeFilter == _GameTypeFilter.expansionsOnly && !g.isExpansion) return false;
     if (players != null) {
       if (g.minPlayers > players! || g.maxPlayers < players!) return false;
     }
@@ -574,6 +581,7 @@ class _FilterSheetState extends State<_FilterSheet> {
   double? _minRating;
   int? _weightBucket;
   bool _notPlayedOnly = false;
+  _GameTypeFilter _gameTypeFilter = _GameTypeFilter.all;
 
   @override
   void initState() {
@@ -583,6 +591,7 @@ class _FilterSheetState extends State<_FilterSheet> {
     _minRating = widget.initial.minRating;
     _weightBucket = widget.initial.weightBucket;
     _notPlayedOnly = widget.initial.notPlayedOnly;
+    _gameTypeFilter = widget.initial.gameTypeFilter;
   }
 
   @override
@@ -614,6 +623,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                     _minRating = null;
                     _weightBucket = null;
                     _notPlayedOnly = false;
+                    _gameTypeFilter = _GameTypeFilter.all;
                   }),
                   child: Text(s.catalogFilterClearAll),
                 ),
@@ -699,6 +709,36 @@ class _FilterSheetState extends State<_FilterSheet> {
                 onSelected: (v) => setState(() => _notPlayedOnly = v),
               ),
             ),
+            const SizedBox(height: 12),
+
+            // Game type
+            _FilterSection(
+              label: s.filterGameType,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  FilterChip(
+                    label: Text(s.filterAll),
+                    selected: _gameTypeFilter == _GameTypeFilter.all,
+                    onSelected: (_) => setState(
+                        () => _gameTypeFilter = _GameTypeFilter.all),
+                  ),
+                  FilterChip(
+                    label: Text(s.filterGameTypeBase),
+                    selected: _gameTypeFilter == _GameTypeFilter.baseOnly,
+                    onSelected: (_) => setState(
+                        () => _gameTypeFilter = _GameTypeFilter.baseOnly),
+                  ),
+                  FilterChip(
+                    label: Text(s.filterGameTypeExpansions),
+                    selected: _gameTypeFilter == _GameTypeFilter.expansionsOnly,
+                    onSelected: (_) => setState(
+                        () => _gameTypeFilter = _GameTypeFilter.expansionsOnly),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 20),
 
             SizedBox(
@@ -711,6 +751,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                     minRating: _minRating,
                     weightBucket: _weightBucket,
                     notPlayedOnly: _notPlayedOnly,
+                    gameTypeFilter: _gameTypeFilter,
                   ));
                   Navigator.pop(context);
                 },
@@ -782,7 +823,22 @@ class _GameCard extends StatelessWidget {
         ),
         title: Text(game.name,
             style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(s.catalogGamePlayers(game.minPlayers, game.maxPlayers)),
+        subtitle: game.isExpansion
+            ? Wrap(
+                spacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(s.catalogGamePlayers(game.minPlayers, game.maxPlayers)),
+                  Chip(
+                    label: const Text('EXP',
+                        style: TextStyle(fontSize: 10, color: Colors.white)),
+                    backgroundColor: Colors.deepPurple.shade400,
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              )
+            : Text(s.catalogGamePlayers(game.minPlayers, game.maxPlayers)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -841,30 +897,46 @@ class _GameGridCard extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      game.name,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 13),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          game.name,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 13),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () =>
+                            context.read<GameProvider>().togglePlayed(game.id),
+                        child: Icon(
+                          game.hasBeenPlayed
+                              ? Icons.check_circle
+                              : Icons.circle,
+                          color: game.hasBeenPlayed
+                              ? Colors.green
+                              : colorScheme.outlineVariant,
+                          size: 18,
+                        ),
+                      ),
+                    ],
                   ),
-                  GestureDetector(
-                    onTap: () =>
-                        context.read<GameProvider>().togglePlayed(game.id),
-                    child: Icon(
-                      game.hasBeenPlayed
-                          ? Icons.check_circle
-                          : Icons.circle,
-                      color: game.hasBeenPlayed
-                          ? Colors.green
-                          : colorScheme.outlineVariant,
-                      size: 18,
+                  if (game.isExpansion)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Chip(
+                        label: const Text('EXP',
+                            style: TextStyle(fontSize: 9, color: Colors.white)),
+                        backgroundColor: Colors.deepPurple.shade400,
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),

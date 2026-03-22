@@ -15,6 +15,9 @@ class BoardGame {
   final double? complexity;
   final double? myRating;
   final double? myWeight;
+  final String? bggId;
+  final bool isExpansion;
+  final String? baseGameId;
 
   const BoardGame({
     required this.id,
@@ -33,6 +36,9 @@ class BoardGame {
     this.complexity,
     this.myRating,
     this.myWeight,
+    this.bggId,
+    this.isExpansion = false,
+    this.baseGameId,
   });
 
   Map<String, dynamic> toMap() => {
@@ -52,6 +58,9 @@ class BoardGame {
         'complexity': complexity,
         'my_rating': myRating,
         'my_weight': myWeight,
+        'bgg_id': bggId,
+        'is_expansion': isExpansion ? 1 : 0,
+        'base_game_id': baseGameId,
       };
 
   factory BoardGame.fromMap(Map<String, dynamic> map) => BoardGame(
@@ -71,6 +80,9 @@ class BoardGame {
         complexity: map['complexity'] as double?,
         myRating: map['my_rating'] as double?,
         myWeight: map['my_weight'] as double?,
+        bggId: map['bgg_id'] as String?,
+        isExpansion: (map['is_expansion'] as int? ?? 0) == 1,
+        baseGameId: map['base_game_id'] as String?,
       );
 
   BoardGame copyWith({
@@ -88,6 +100,9 @@ class BoardGame {
     double? complexity,
     double? myRating,
     double? myWeight,
+    String? bggId,
+    bool? isExpansion,
+    String? baseGameId,
   }) =>
       BoardGame(
         id: id,
@@ -106,5 +121,8 @@ class BoardGame {
         complexity: complexity ?? this.complexity,
         myRating: myRating ?? this.myRating,
         myWeight: myWeight ?? this.myWeight,
+        bggId: bggId ?? this.bggId,
+        isExpansion: isExpansion ?? this.isExpansion,
+        baseGameId: baseGameId ?? this.baseGameId,
       );
 }

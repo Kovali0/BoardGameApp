@@ -22,7 +22,7 @@ class DatabaseHelper {
     final path = join(dbPath, 'board_game_manager.db');
     return openDatabase(
       path,
-      version: 8,
+      version: 10,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -75,6 +75,14 @@ class DatabaseHelper {
     if (oldVersion < 8) {
       await db.execute('ALTER TABLE wishlist ADD COLUMN price REAL');
     }
+    if (oldVersion < 9) {
+      await db.execute('ALTER TABLE games ADD COLUMN bgg_id TEXT');
+      await db.execute('ALTER TABLE games ADD COLUMN is_expansion INTEGER DEFAULT 0');
+      await db.execute('ALTER TABLE games ADD COLUMN base_game_id TEXT');
+    }
+    if (oldVersion < 10) {
+      await db.execute("ALTER TABLE sessions ADD COLUMN expansion_ids TEXT DEFAULT '[]'");
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -95,7 +103,10 @@ class DatabaseHelper {
         bgg_rating REAL,
         complexity REAL,
         my_rating REAL,
-        my_weight REAL
+        my_weight REAL,
+        bgg_id TEXT,
+        is_expansion INTEGER DEFAULT 0,
+        base_game_id TEXT
       )
     ''');
 
@@ -108,7 +119,8 @@ class DatabaseHelper {
         end_time TEXT,
         duration_seconds INTEGER NOT NULL,
         notes TEXT,
-        is_from_collection INTEGER NOT NULL DEFAULT 1
+        is_from_collection INTEGER NOT NULL DEFAULT 1,
+        expansion_ids TEXT DEFAULT '[]'
       )
     ''');
 

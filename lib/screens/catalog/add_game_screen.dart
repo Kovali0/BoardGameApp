@@ -39,6 +39,9 @@ class _AddGameScreenState extends State<AddGameScreen> {
   String? _imageUrl;
   String? _thumbnailUrl;
 
+  String? _bggId;
+  bool _isExpansion = false;
+
   bool get _isEditing => widget.game != null;
 
   @override
@@ -64,6 +67,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
         TextEditingController(text: g?.myWeight?.toStringAsFixed(1) ?? '');
     _imageUrl = g?.imageUrl;
     _thumbnailUrl = g?.thumbnailUrl;
+    _bggId = g?.bggId;
+    _isExpansion = g?.isExpansion ?? false;
   }
 
   @override
@@ -134,6 +139,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
         }
         _imageUrl = result.imageUrl;
         _thumbnailUrl = result.thumbnailUrl;
+        _bggId = result.id;
+        _isExpansion = result.isExpansion;
         _minPlaytimeController.text =
             result.minPlaytime?.toString() ?? '';
         _maxPlaytimeController.text =
@@ -188,6 +195,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
         complexity: complexity,
         myRating: myRating,
         myWeight: myWeight,
+        bggId: _bggId,
+        isExpansion: _isExpansion,
       ));
     } else {
       await provider.addGame(
@@ -204,6 +213,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
         complexity: complexity,
         myRating: myRating,
         myWeight: myWeight,
+        bggId: _bggId,
+        isExpansion: _isExpansion,
       );
     }
     if (mounted) Navigator.pop(context);
@@ -212,22 +223,21 @@ class _AddGameScreenState extends State<AddGameScreen> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
-    return GestureDetector(
-      onTap: () => setState(() => _showResults = false),
-      child: Scaffold(
+    return Scaffold(
         appBar: AppBar(
           title: Text(_isEditing ? s.editGameTitle : s.addGameTitle),
         ),
         body: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
             children: [
               if (!_isEditing) ...[
                 _BggSearchBar(
                   controller: _searchController,
                   searching: _searching,
                   onChanged: _onSearchChanged,
+                  onDismiss: () => setState(() => _showResults = false),
                   onClear: () {
                     _searchController.clear();
                     setState(() {
@@ -445,23 +455,45 @@ class _AddGameScreenState extends State<AddGameScreen> {
             ],
           ),
         ),
-      ),
     );
   }
 }
 
-class _BggSearchBar extends StatelessWidget {
+class _BggSearchBar extends StatefulWidget {
   final TextEditingController controller;
   final bool searching;
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
+  final VoidCallback onDismiss;
 
   const _BggSearchBar({
     required this.controller,
     required this.searching,
     required this.onChanged,
     required this.onClear,
+    required this.onDismiss,
   });
+
+  @override
+  State<_BggSearchBar> createState() => _BggSearchBarState();
+}
+
+class _BggSearchBarState extends State<_BggSearchBar> {
+  final _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) widget.onDismiss();
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -484,18 +516,19 @@ class _BggSearchBar extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         TextField(
-          controller: controller,
-          onChanged: onChanged,
+          controller: widget.controller,
+          focusNode: _focusNode,
+          onChanged: widget.onChanged,
           decoration: InputDecoration(
             hintText: s.addGameBggSearchHint,
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.travel_explore),
-            suffixIcon: controller.text.isNotEmpty
+            suffixIcon: widget.controller.text.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.clear),
-                    onPressed: onClear,
+                    onPressed: widget.onClear,
                   )
-                : searching
+                : widget.searching
                     ? const Padding(
                         padding: EdgeInsets.all(12),
                         child: SizedBox(
@@ -564,11 +597,15 @@ class _SearchResultCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: theme.colorScheme.primaryContainer,
+                backgroundColor: result.isExpansion
+                    ? theme.colorScheme.secondaryContainer
+                    : theme.colorScheme.primaryContainer,
                 child: Icon(
-                  Icons.casino_outlined,
+                  result.isExpansion ? Icons.extension_outlined : Icons.casino_outlined,
                   size: 20,
-                  color: theme.colorScheme.onPrimaryContainer,
+                  color: result.isExpansion
+                      ? theme.colorScheme.onSecondaryContainer
+                      : theme.colorScheme.onPrimaryContainer,
                 ),
               ),
               const SizedBox(width: 12),
@@ -576,13 +613,34 @@ class _SearchResultCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      result.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            result.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (result.isExpansion) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.secondaryContainer,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text('EXP',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.onSecondaryContainer)),
+                          ),
+                        ],
+                      ],
                     ),
                     if (result.year != null || hasPlayers)
                       const SizedBox(height: 4),

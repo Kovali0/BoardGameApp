@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/board_game.dart';
 import '../../models/game_session.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
@@ -78,6 +79,49 @@ class SessionDetailScreen extends StatelessWidget {
               ),
             );
           }),
+          if (session.expansionIds.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(s.sessionExpansionsSection,
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Consumer<GameProvider>(
+              builder: (context, provider, _) {
+                final expansions = session.expansionIds
+                    .map((id) =>
+                        provider.games.where((g) => g.id == id).firstOrNull)
+                    .whereType<BoardGame>()
+                    .toList();
+                return Card(
+                  child: Column(
+                    children: [
+                      for (int i = 0; i < expansions.length; i++) ...[
+                        ListTile(
+                          leading: CircleAvatar(
+                            backgroundImage: (expansions[i].thumbnailUrl ??
+                                        expansions[i].imageUrl) !=
+                                    null
+                                ? NetworkImage(expansions[i].thumbnailUrl ??
+                                    expansions[i].imageUrl!)
+                                : null,
+                            child: (expansions[i].thumbnailUrl ??
+                                        expansions[i].imageUrl) ==
+                                    null
+                                ? const Icon(Icons.extension)
+                                : null,
+                          ),
+                          title: Text(expansions[i].name,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w500)),
+                        ),
+                        if (i < expansions.length - 1)
+                          const Divider(height: 1),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
           if (session.notes != null && session.notes!.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(s.sessionDetailNotes, style: Theme.of(context).textTheme.titleMedium),
@@ -106,6 +150,9 @@ class SessionDetailScreen extends StatelessWidget {
           preselectedGame: game,
           prefilledPlayers: playerNames,
           prefilledGuestGameName: game == null ? session.gameName : null,
+          prefilledExpansionIds: session.expansionIds.isNotEmpty
+              ? session.expansionIds
+              : null,
         ),
       ),
     );

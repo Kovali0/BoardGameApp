@@ -259,6 +259,24 @@ abstract class AppStrings {
   String get wishlistClearFilters;
   String get wishlistFilterByPriority;
 
+  // Expansions
+  String get expansionsTitle;
+  String get expansionBaseGame;
+  String get expansionOwned;
+  String get expansionAdd;
+  String get expansionAdded;
+  String get expansionNone;
+  String get expansionNoBgg;
+  String get expansionLinkToBgg;
+  String get filterGameType;
+  String get filterGameTypeBase;
+  String get filterGameTypeExpansions;
+  String expansionOf(String name);
+  String get sessionExpansionsSection;
+  String get historyFilterWithExpansions;
+  String get statsMostUsedExpansion;
+  String get statsSessionsWithExpansions;
+
   // Settings
   String get settingsTitle;
   String get settingsAppearance;
@@ -556,6 +574,24 @@ class EnStrings extends AppStrings {
   @override String get wishlistClearFilters => 'Clear filters';
   @override String get wishlistFilterByPriority => 'Filter by priority';
 
+  // Expansions
+  @override String get expansionsTitle => 'Expansions';
+  @override String get expansionBaseGame => 'Base game';
+  @override String get expansionOwned => 'Owned';
+  @override String get expansionAdd => 'Add to collection';
+  @override String get expansionAdded => 'Added to collection';
+  @override String get expansionNone => 'No expansions found on BGG';
+  @override String get expansionNoBgg => 'Link game to BGG to browse expansions';
+  @override String get expansionLinkToBgg => 'Search on BGG';
+  @override String get filterGameType => 'Type';
+  @override String get filterGameTypeBase => 'Base games';
+  @override String get filterGameTypeExpansions => 'Expansions';
+  @override String expansionOf(String name) => 'Expansion of: $name';
+  @override String get sessionExpansionsSection => 'Expansions used';
+  @override String get historyFilterWithExpansions => 'With expansions';
+  @override String get statsMostUsedExpansion => 'Most used expansion';
+  @override String get statsSessionsWithExpansions => 'Sessions with expansions';
+
   // Settings
   @override String get settingsTitle => 'Settings';
   @override String get settingsAppearance => 'APPEARANCE';
@@ -844,6 +880,24 @@ class PlStrings extends AppStrings {
   @override String get wishlistNoResults => 'Żadne pozycje nie pasują do filtrów.';
   @override String get wishlistClearFilters => 'Wyczyść filtry';
   @override String get wishlistFilterByPriority => 'Filtruj po priorytecie';
+
+  // Expansions
+  @override String get expansionsTitle => 'Rozszerzenia';
+  @override String get expansionBaseGame => 'Gra podstawowa';
+  @override String get expansionOwned => 'Posiadane';
+  @override String get expansionAdd => 'Dodaj do kolekcji';
+  @override String get expansionAdded => 'Dodano do kolekcji';
+  @override String get expansionNone => 'Brak rozszerzeń na BGG';
+  @override String get expansionNoBgg => 'Połącz grę z BGG, aby przeglądać rozszerzenia';
+  @override String get expansionLinkToBgg => 'Szukaj na BGG';
+  @override String get filterGameType => 'Typ';
+  @override String get filterGameTypeBase => 'Gry podstawowe';
+  @override String get filterGameTypeExpansions => 'Rozszerzenia';
+  @override String expansionOf(String name) => 'Rozszerzenie gry: $name';
+  @override String get sessionExpansionsSection => 'Użyte rozszerzenia';
+  @override String get historyFilterWithExpansions => 'Z rozszerzeniami';
+  @override String get statsMostUsedExpansion => 'Najczęściej używane rozszerzenie';
+  @override String get statsSessionsWithExpansions => 'Sesje z rozszerzeniami';
 
   // Settings
   @override String get settingsTitle => 'Ustawienia';

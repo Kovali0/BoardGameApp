@@ -14,6 +14,7 @@ class BggSearchResult {
   final int? maxPlaytime;
   final double? bggRating;
   final double? complexity;
+  final bool isExpansion; // true if type=boardgameexpansion on BGG
 
   const BggSearchResult({
     required this.id,
@@ -27,6 +28,7 @@ class BggSearchResult {
     this.maxPlaytime,
     this.bggRating,
     this.complexity,
+    this.isExpansion = false,
   });
 }
 
@@ -60,6 +62,34 @@ class BggGameDetail {
   });
 }
 
+class BggExpansionItem {
+  final String bggId;
+  final String name;
+  final String? thumbnailUrl;
+  final String? imageUrl;
+  final double? bggRating;
+  final int? yearPublished;
+  final int? minPlayers;
+  final int? maxPlayers;
+  final int? minPlaytime;
+  final int? maxPlaytime;
+  final double? complexity;
+
+  const BggExpansionItem({
+    required this.bggId,
+    required this.name,
+    this.thumbnailUrl,
+    this.imageUrl,
+    this.bggRating,
+    this.yearPublished,
+    this.minPlayers,
+    this.maxPlayers,
+    this.minPlaytime,
+    this.maxPlaytime,
+    this.complexity,
+  });
+}
+
 class BggService {
   static const _bggToken = '7fb814ad-3f61-4c01-a3fb-761c06d906ef';
   static const _baseUrl = 'https://boardgamegeek.com/xmlapi2';
@@ -73,10 +103,10 @@ class BggService {
     if (query.trim().isEmpty) return [];
     debugPrint('[BGG] searchGames: "$query"');
 
-    // Step 1: Search by name — returns IDs and basic names
+    // Step 1: Search by name — boardgame + boardgameexpansion
     final searchUri = Uri.parse('$_baseUrl/search').replace(queryParameters: {
       'query': query.trim(),
-      'type': 'boardgame',
+      'type': 'boardgame,boardgameexpansion',
     });
 
     final searchResponse = await http
@@ -98,10 +128,9 @@ class BggService {
         .where((id) => id != null)
         .join(',');
 
-    // Step 2: Fetch details for all IDs in one call (stats=1 for rating + complexity)
+    // Step 2: Fetch details for all IDs — no type filter so expansions are included
     var detailUri = Uri.parse('$_baseUrl/thing').replace(queryParameters: {
       'id': ids,
-      'type': 'boardgame',
       'stats': '1',
     });
 
@@ -129,10 +158,14 @@ class BggService {
       final id = item.getAttribute('id');
       if (id == null) continue;
 
+      final itemType = item.getAttribute('type') ?? '';
+      final isExpansion = itemType == 'boardgameexpansion';
+
       final primaryName = item
           .findAllElements('name')
           .where((e) => e.getAttribute('type') == 'primary')
-          .firstOrNull;
+          .firstOrNull ??
+          item.findAllElements('name').firstOrNull;
       final name = primaryName?.getAttribute('value');
       if (name == null || name.isEmpty) continue;
 
@@ -180,6 +213,7 @@ class BggService {
         maxPlaytime: maxPlaytime,
         bggRating: (bggRating != null && bggRating > 0) ? bggRating : null,
         complexity: (complexity != null && complexity > 0) ? complexity : null,
+        isExpansion: isExpansion,
       ));
     }
 
@@ -284,6 +318,147 @@ class BggService {
       bggRating: (bggRating != null && bggRating > 0) ? bggRating : null,
       complexity: (complexity != null && complexity > 0) ? complexity : null,
     );
+  }
+
+  Future<List<BggExpansionItem>> fetchExpansions(String bggId) async {
+    debugPrint('[BGG] fetchExpansions for bggId=$bggId');
+
+    // Step 1: fetch base game details to find expansion links
+    final baseUri = Uri.parse('$_baseUrl/thing').replace(queryParameters: {
+      'id': bggId,
+      'stats': '1',
+    });
+
+    var baseResponse = await http
+        .get(baseUri, headers: _headers)
+        .timeout(const Duration(seconds: 20));
+
+    while (baseResponse.statusCode == 202) {
+      debugPrint('[BGG] 202 queued, retrying...');
+      await Future.delayed(const Duration(seconds: 2));
+      baseResponse = await http
+          .get(baseUri, headers: _headers)
+          .timeout(const Duration(seconds: 20));
+    }
+
+    if (baseResponse.statusCode != 200) return [];
+
+    final baseDoc = xml.XmlDocument.parse(baseResponse.body);
+    final baseItem = baseDoc.findAllElements('item').firstOrNull;
+    if (baseItem == null) return [];
+
+    // Collect expansion IDs: <link type="boardgameexpansion"> without inbound="true"
+    final expansionIds = baseItem
+        .findAllElements('link')
+        .where((e) =>
+            e.getAttribute('type') == 'boardgameexpansion' &&
+            e.getAttribute('inbound') != 'true')
+        .map((e) => e.getAttribute('id'))
+        .where((id) => id != null && id.isNotEmpty)
+        .cast<String>()
+        .toList();
+
+    debugPrint('[BGG] found ${expansionIds.length} expansion IDs');
+    if (expansionIds.isEmpty) return [];
+
+    // Step 2: batch-fetch details in chunks of 20 to avoid URL limits
+    final results = <BggExpansionItem>[];
+    const chunkSize = 20;
+    for (int start = 0; start < expansionIds.length; start += chunkSize) {
+      final chunk = expansionIds.skip(start).take(chunkSize).toList();
+      final ids = chunk.join(',');
+      var detailUri = Uri.parse('$_baseUrl/thing').replace(queryParameters: {
+        'id': ids,
+        'type': 'boardgameexpansion',
+        'stats': '1',
+      });
+
+      var detailResponse = await http
+          .get(detailUri, headers: _headers)
+          .timeout(const Duration(seconds: 30));
+
+      while (detailResponse.statusCode == 202) {
+        debugPrint('[BGG] 202 queued, retrying...');
+        await Future.delayed(const Duration(seconds: 2));
+        detailResponse = await http
+            .get(detailUri, headers: _headers)
+            .timeout(const Duration(seconds: 30));
+      }
+
+      if (detailResponse.statusCode != 200) continue;
+
+      final detailDoc = xml.XmlDocument.parse(detailResponse.body);
+      for (final item in detailDoc.findAllElements('item')) {
+        final id = item.getAttribute('id');
+        if (id == null) continue;
+
+        // Primary name, with fallback to any name element
+        final nameEl = item
+            .findAllElements('name')
+            .where((e) => e.getAttribute('type') == 'primary')
+            .firstOrNull ??
+            item.findAllElements('name').firstOrNull;
+        final name = nameEl?.getAttribute('value');
+        if (name == null || name.isEmpty) continue;
+
+      final yearStr =
+          item.findAllElements('yearpublished').firstOrNull?.getAttribute('value');
+      final year = yearStr != null ? int.tryParse(yearStr) : null;
+
+      final minStr =
+          item.findAllElements('minplayers').firstOrNull?.getAttribute('value');
+      final maxStr =
+          item.findAllElements('maxplayers').firstOrNull?.getAttribute('value');
+      final minPlayers = minStr != null ? int.tryParse(minStr) : null;
+      final maxPlayers = maxStr != null ? int.tryParse(maxStr) : null;
+
+      final minTimeStr =
+          item.findAllElements('minplaytime').firstOrNull?.getAttribute('value');
+      final maxTimeStr =
+          item.findAllElements('maxplaytime').firstOrNull?.getAttribute('value');
+      final minPlaytime = minTimeStr != null ? int.tryParse(minTimeStr) : null;
+      final maxPlaytime = maxTimeStr != null ? int.tryParse(maxTimeStr) : null;
+
+      final rawImage =
+          item.findAllElements('image').firstOrNull?.innerText.trim();
+      final rawThumb =
+          item.findAllElements('thumbnail').firstOrNull?.innerText.trim();
+
+      final ratings = item.findAllElements('ratings').firstOrNull;
+      final ratingStr =
+          ratings?.findAllElements('average').firstOrNull?.getAttribute('value');
+      final complexityStr =
+          ratings?.findAllElements('averageweight').firstOrNull?.getAttribute('value');
+      final bggRating = ratingStr != null ? double.tryParse(ratingStr) : null;
+      final complexity =
+          complexityStr != null ? double.tryParse(complexityStr) : null;
+
+      results.add(BggExpansionItem(
+        bggId: id,
+        name: name,
+        thumbnailUrl: _normalizeImageUrl(rawThumb),
+        imageUrl: _normalizeImageUrl(rawImage),
+        bggRating: (bggRating != null && bggRating > 0) ? bggRating : null,
+        yearPublished: year,
+        minPlayers: minPlayers,
+        maxPlayers: maxPlayers,
+        minPlaytime: minPlaytime,
+        maxPlaytime: maxPlaytime,
+        complexity: (complexity != null && complexity > 0) ? complexity : null,
+      ));
+      } // end for item in chunk
+    } // end for chunk
+
+    // Sort by year asc then name
+    results.sort((a, b) {
+      final ya = a.yearPublished ?? 0;
+      final yb = b.yearPublished ?? 0;
+      if (ya != yb) return ya.compareTo(yb);
+      return a.name.compareTo(b.name);
+    });
+
+    debugPrint('[BGG] fetchExpansions returning ${results.length} items');
+    return results;
   }
 
   /// BGG returns protocol-relative URLs like "//cf.geekdo-images.com/...".

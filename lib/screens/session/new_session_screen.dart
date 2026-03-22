@@ -7,16 +7,19 @@ import '../../providers/settings_provider.dart';
 import '../../models/board_game.dart';
 import 'random_starter_screen.dart';
 
+
 class NewSessionScreen extends StatefulWidget {
   final BoardGame? preselectedGame;
   final List<String>? prefilledPlayers;
   final String? prefilledGuestGameName;
+  final List<String>? prefilledExpansionIds;
 
   const NewSessionScreen({
     super.key,
     this.preselectedGame,
     this.prefilledPlayers,
     this.prefilledGuestGameName,
+    this.prefilledExpansionIds,
   });
 
   @override
@@ -28,11 +31,12 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
   BoardGame? _selectedGame;
   late final TextEditingController _guestGameNameController;
   final List<TextEditingController> _playerControllers = [];
+  final Set<String> _selectedExpansionIds = {};
+  String? _expansionOriginName; // set when auto-swapped from an expansion
 
   @override
   void initState() {
     super.initState();
-    _selectedGame = widget.preselectedGame;
 
     if (widget.prefilledGuestGameName != null) {
       _isGuestGame = true;
@@ -40,6 +44,26 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
           TextEditingController(text: widget.prefilledGuestGameName);
     } else {
       _guestGameNameController = TextEditingController();
+    }
+
+    // Auto-swap: if preselected game is an expansion, use base game instead
+    _selectedGame = widget.preselectedGame;
+    if (widget.preselectedGame?.isExpansion == true &&
+        widget.preselectedGame?.baseGameId != null) {
+      final games = context.read<GameProvider>().games;
+      final baseGame = games
+          .where((g) => g.id == widget.preselectedGame!.baseGameId)
+          .firstOrNull;
+      if (baseGame != null) {
+        _selectedGame = baseGame;
+        _expansionOriginName = widget.preselectedGame!.name;
+        _selectedExpansionIds.add(widget.preselectedGame!.id);
+      }
+    }
+
+    // Rematch: pre-fill expansion selections
+    if (widget.prefilledExpansionIds != null) {
+      _selectedExpansionIds.addAll(widget.prefilledExpansionIds!);
     }
 
     if (widget.prefilledPlayers != null && widget.prefilledPlayers!.isNotEmpty) {
@@ -132,6 +156,7 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
             game: _selectedGame!,
             players: players,
             isFromCollection: true,
+            expansionIds: _selectedExpansionIds.toList(),
           ),
         ),
       );
@@ -231,7 +256,74 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
                             child: Text(game.name),
                           ))
                       .toList(),
-                  onChanged: (game) => setState(() => _selectedGame = game),
+                  onChanged: (game) => setState(() {
+                    _selectedGame = game;
+                    _selectedExpansionIds.clear();
+                    _expansionOriginName = null;
+                  }),
+                );
+              },
+            ),
+          // Expansion origin banner
+          if (_expansionOriginName != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.deepPurple.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.extension, size: 16, color: Colors.deepPurple.shade400),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      context.watch<LanguageProvider>().strings.expansionOf(_expansionOriginName!),
+                      style: TextStyle(fontSize: 13, color: Colors.deepPurple.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          // Expansion picker for selected base game
+          if (!_isGuestGame && _selectedGame != null)
+            Consumer<GameProvider>(
+              builder: (context, provider, _) {
+                final expansions = provider.games
+                    .where((g) =>
+                        g.isExpansion && g.baseGameId == _selectedGame!.id)
+                    .toList();
+                if (expansions.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    Text(s.expansionsTitle,
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: expansions
+                          .map((exp) => FilterChip(
+                                avatar: const Icon(Icons.extension, size: 14),
+                                label: Text(exp.name),
+                                selected:
+                                    _selectedExpansionIds.contains(exp.id),
+                                onSelected: (v) => setState(() {
+                                  if (v) {
+                                    _selectedExpansionIds.add(exp.id);
+                                  } else {
+                                    _selectedExpansionIds.remove(exp.id);
+                                  }
+                                }),
+                              ))
+                          .toList(),
+                    ),
+                  ],
                 );
               },
             ),

@@ -6,6 +6,7 @@ import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
 import 'game_results_screen.dart';
 
+
 class EndSessionScreen extends StatefulWidget {
   final BoardGame game;
   final List<String> players;
@@ -13,6 +14,7 @@ class EndSessionScreen extends StatefulWidget {
   final DateTime startTime;
   final int durationSeconds;
   final bool isFromCollection;
+  final List<String> expansionIds;
 
   const EndSessionScreen({
     super.key,
@@ -22,6 +24,7 @@ class EndSessionScreen extends StatefulWidget {
     required this.startTime,
     required this.durationSeconds,
     this.isFromCollection = true,
+    this.expansionIds = const [],
   });
 
   @override
@@ -178,6 +181,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
               .toList(),
           notes: combinedNotes,
           isFromCollection: widget.isFromCollection,
+          expansionIds: widget.expansionIds,
         );
 
     if (mounted) {
@@ -225,14 +229,49 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+              child: Column(
                 children: [
-                  _SummaryItem(icon: Icons.casino, label: widget.game.name),
-                  _SummaryItem(icon: Icons.timer, label: _formattedDuration),
-                  _SummaryItem(
-                      icon: Icons.group,
-                      label: '${widget.players.length} players'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _SummaryItem(icon: Icons.casino, label: widget.game.name),
+                      _SummaryItem(icon: Icons.timer, label: _formattedDuration),
+                      _SummaryItem(
+                          icon: Icons.group,
+                          label: '${widget.players.length} players'),
+                    ],
+                  ),
+                  if (widget.expansionIds.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Consumer<GameProvider>(
+                      builder: (context, provider, _) {
+                        final expansions = widget.expansionIds
+                            .map((id) => provider.games
+                                .where((g) => g.id == id)
+                                .firstOrNull)
+                            .whereType<BoardGame>()
+                            .toList();
+                        if (expansions.isEmpty) return const SizedBox.shrink();
+                        return Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          alignment: WrapAlignment.center,
+                          children: expansions
+                              .map((e) => Chip(
+                                    label: Text(e.name,
+                                        style: const TextStyle(
+                                            fontSize: 11, color: Colors.white)),
+                                    backgroundColor: Colors.deepPurple.shade400,
+                                    padding: EdgeInsets.zero,
+                                    visualDensity: VisualDensity.compact,
+                                    avatar: const Icon(Icons.extension,
+                                        size: 14, color: Colors.white70),
+                                  ))
+                              .toList(),
+                        );
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
