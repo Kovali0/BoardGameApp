@@ -277,6 +277,33 @@ abstract class AppStrings {
   String get statsMostUsedExpansion;
   String get statsSessionsWithExpansions;
 
+  // Game Night Picker
+  String get pickerTitle;
+  String get pickerLandingTitle;
+  String get pickerLandingSub;
+  String get pickerPlayers;
+  String get pickerTime;
+  String get pickerNoLimit;
+  String get pickerComplexity;
+  String get pickerComplexityAny;
+  String get pickerComplexityLight;
+  String get pickerComplexityMedium;
+  String get pickerComplexityHeavy;
+  String get pickerNotPlayedYet;
+  String get pickerFind;
+  String get pickerNoResults;
+  String get pickerRandomPick;
+  String get pickerPlay;
+  String pickerResults(int n);
+  String get pickerPickGame;
+  String get pickerCategories;
+  String get pickerMechanics;
+  String get pickerFamilyFriendly;
+  String get pickerYearEra;
+  String get pickerYearClassic;
+  String get pickerYearModern;
+  String get pickerYearRecent;
+
   // Settings
   String get settingsTitle;
   String get settingsAppearance;
@@ -592,6 +619,33 @@ class EnStrings extends AppStrings {
   @override String get statsMostUsedExpansion => 'Most used expansion';
   @override String get statsSessionsWithExpansions => 'Sessions with expansions';
 
+  // Game Night Picker
+  @override String get pickerTitle => 'Game Night Picker';
+  @override String get pickerLandingTitle => 'What should we play?';
+  @override String get pickerLandingSub => 'Find what fits your night';
+  @override String get pickerPlayers => 'Number of players';
+  @override String get pickerTime => 'Available time';
+  @override String get pickerNoLimit => 'No limit';
+  @override String get pickerComplexity => 'Complexity';
+  @override String get pickerComplexityAny => 'Any';
+  @override String get pickerComplexityLight => 'Light';
+  @override String get pickerComplexityMedium => 'Medium';
+  @override String get pickerComplexityHeavy => 'Heavy';
+  @override String get pickerNotPlayedYet => 'Not played yet only';
+  @override String get pickerFind => 'Find games';
+  @override String get pickerNoResults => 'No games match the criteria';
+  @override String get pickerRandomPick => 'Random pick';
+  @override String get pickerPlay => 'Play!';
+  @override String pickerResults(int n) => '$n game${n == 1 ? '' : 's'} match';
+  @override String get pickerPickGame => 'Pick a game for me!';
+  @override String get pickerCategories => 'Category';
+  @override String get pickerMechanics => 'Mechanics';
+  @override String get pickerFamilyFriendly => 'Family friendly (age ≤ 10)';
+  @override String get pickerYearEra => 'Era';
+  @override String get pickerYearClassic => 'Classic (≤ 2000)';
+  @override String get pickerYearModern => 'Modern (2001–2015)';
+  @override String get pickerYearRecent => 'Recent (2016+)';
+
   // Settings
   @override String get settingsTitle => 'Settings';
   @override String get settingsAppearance => 'APPEARANCE';
@@ -898,6 +952,37 @@ class PlStrings extends AppStrings {
   @override String get historyFilterWithExpansions => 'Z rozszerzeniami';
   @override String get statsMostUsedExpansion => 'Najczęściej używane rozszerzenie';
   @override String get statsSessionsWithExpansions => 'Sesje z rozszerzeniami';
+
+  // Game Night Picker
+  @override String get pickerTitle => 'Dobieracz gry';
+  @override String get pickerLandingTitle => 'W co zagramy?';
+  @override String get pickerLandingSub => 'Znajdź coś na dziś wieczór';
+  @override String get pickerPlayers => 'Liczba graczy';
+  @override String get pickerTime => 'Dostępny czas';
+  @override String get pickerNoLimit => 'Bez limitu';
+  @override String get pickerComplexity => 'Złożoność';
+  @override String get pickerComplexityAny => 'Dowolna';
+  @override String get pickerComplexityLight => 'Lekka';
+  @override String get pickerComplexityMedium => 'Średnia';
+  @override String get pickerComplexityHeavy => 'Ciężka';
+  @override String get pickerNotPlayedYet => 'Tylko niegrane';
+  @override String get pickerFind => 'Znajdź gry';
+  @override String get pickerNoResults => 'Żadna gra nie pasuje do kryteriów';
+  @override String get pickerRandomPick => 'Losowy wybór';
+  @override String get pickerPlay => 'Graj!';
+  @override String get pickerPickGame => 'Wybierz grę za mnie!';
+  @override String get pickerCategories => 'Kategoria';
+  @override String get pickerMechanics => 'Mechaniki';
+  @override String get pickerFamilyFriendly => 'Familijne (wiek ≤ 10)';
+  @override String get pickerYearEra => 'Era';
+  @override String get pickerYearClassic => 'Klasyczne (≤ 2000)';
+  @override String get pickerYearModern => 'Nowoczesne (2001–2015)';
+  @override String get pickerYearRecent => 'Najnowsze (2016+)';
+  @override String pickerResults(int n) {
+    if (n == 1) return '1 gra pasuje';
+    if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return '$n gry pasują';
+    return '$n gier pasuje';
+  }
 
   // Settings
   @override String get settingsTitle => 'Ustawienia';

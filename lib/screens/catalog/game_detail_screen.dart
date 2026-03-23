@@ -184,7 +184,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                       ],
                     ),
                   ],
-                  if (game.myRating != null || game.myWeight != null) ...[
+                  ...[
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -194,21 +194,76 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                                 .labelSmall
                                 ?.copyWith(color: Theme.of(context).colorScheme.primary)),
                         const SizedBox(width: 8),
-                        if (game.myRating != null) ...[
-                          Icon(Icons.star, color: Theme.of(context).colorScheme.primary, size: 18),
-                          const SizedBox(width: 4),
-                          Text('${game.myRating!.toStringAsFixed(1)} / 10',
-                              style: Theme.of(context).textTheme.bodyLarge),
-                        ],
-                        if (game.myRating != null && game.myWeight != null)
-                          const SizedBox(width: 16),
-                        if (game.myWeight != null) ...[
-                          Icon(Icons.psychology, color: Theme.of(context).colorScheme.primary, size: 18),
-                          const SizedBox(width: 4),
-                          Text('${game.myWeight!.toStringAsFixed(1)} / 5',
-                              style: Theme.of(context).textTheme.bodyLarge),
-                        ],
+                        Icon(Icons.star,
+                            color: game.myRating != null
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.outline,
+                            size: 18),
+                        const SizedBox(width: 4),
+                        Text(
+                          game.myRating != null
+                              ? '${game.myRating!.toStringAsFixed(1)} / 10'
+                              : '— / 10',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: game.myRating != null
+                                  ? null
+                                  : Theme.of(context).colorScheme.outline),
+                        ),
+                        const SizedBox(width: 16),
+                        Icon(Icons.psychology,
+                            color: game.myWeight != null
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.outline,
+                            size: 18),
+                        const SizedBox(width: 4),
+                        Text(
+                          game.myWeight != null
+                              ? '${game.myWeight!.toStringAsFixed(1)} / 5'
+                              : '— / 5',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: game.myWeight != null
+                                  ? null
+                                  : Theme.of(context).colorScheme.outline),
+                        ),
                       ],
+                    ),
+                  ],
+                  if (game.categories.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(s.pickerCategories,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: Theme.of(context).colorScheme.outline)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: game.categories
+                          .map((c) => Chip(
+                                label: Text(c,
+                                    style: const TextStyle(fontSize: 11)),
+                                padding: EdgeInsets.zero,
+                                visualDensity: VisualDensity.compact,
+                              ))
+                          .toList(),
+                    ),
+                  ],
+                  if (game.mechanics.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(s.pickerMechanics,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: Theme.of(context).colorScheme.outline)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: game.mechanics
+                          .map((m) => Chip(
+                                label: Text(m,
+                                    style: const TextStyle(fontSize: 11)),
+                                padding: EdgeInsets.zero,
+                                visualDensity: VisualDensity.compact,
+                              ))
+                          .toList(),
                     ),
                   ],
                   if (game.description != null &&

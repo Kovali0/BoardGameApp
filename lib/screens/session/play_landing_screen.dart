@@ -4,6 +4,7 @@ import '../../providers/language_provider.dart';
 import '../../models/board_game.dart';
 import 'new_session_screen.dart';
 import 'add_results_screen.dart';
+import 'game_night_picker_screen.dart';
 
 class PlayLandingScreen extends StatelessWidget {
   final BoardGame? preselectedGame;
@@ -51,6 +52,21 @@ class PlayLandingScreen extends StatelessWidget {
                 ),
               ),
             ),
+            if (preselectedGame == null) ...[
+              const SizedBox(height: 16),
+              _OptionCard(
+                icon: Icons.auto_awesome_outlined,
+                title: s.pickerLandingTitle,
+                subtitle: s.pickerLandingSub,
+                filled: false,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const GameNightPickerScreen(),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         ),

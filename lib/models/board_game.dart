@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class BoardGame {
   final String id;
   final String name;
@@ -18,6 +20,10 @@ class BoardGame {
   final String? bggId;
   final bool isExpansion;
   final String? baseGameId;
+  final List<String> categories;
+  final List<String> mechanics;
+  final int? yearPublished;
+  final int? minAge;
 
   const BoardGame({
     required this.id,
@@ -39,6 +45,10 @@ class BoardGame {
     this.bggId,
     this.isExpansion = false,
     this.baseGameId,
+    this.categories = const [],
+    this.mechanics = const [],
+    this.yearPublished,
+    this.minAge,
   });
 
   Map<String, dynamic> toMap() => {
@@ -61,7 +71,20 @@ class BoardGame {
         'bgg_id': bggId,
         'is_expansion': isExpansion ? 1 : 0,
         'base_game_id': baseGameId,
+        'categories': jsonEncode(categories),
+        'mechanics': jsonEncode(mechanics),
+        'year_published': yearPublished,
+        'min_age': minAge,
       };
+
+  static List<String> _parseJsonList(dynamic raw) {
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        return List<String>.from(jsonDecode(raw) as List);
+      } catch (_) {}
+    }
+    return [];
+  }
 
   factory BoardGame.fromMap(Map<String, dynamic> map) => BoardGame(
         id: map['id'] as String,
@@ -83,6 +106,10 @@ class BoardGame {
         bggId: map['bgg_id'] as String?,
         isExpansion: (map['is_expansion'] as int? ?? 0) == 1,
         baseGameId: map['base_game_id'] as String?,
+        categories: _parseJsonList(map['categories']),
+        mechanics: _parseJsonList(map['mechanics']),
+        yearPublished: map['year_published'] as int?,
+        minAge: map['min_age'] as int?,
       );
 
   BoardGame copyWith({
@@ -103,6 +130,10 @@ class BoardGame {
     String? bggId,
     bool? isExpansion,
     String? baseGameId,
+    List<String>? categories,
+    List<String>? mechanics,
+    int? yearPublished,
+    int? minAge,
   }) =>
       BoardGame(
         id: id,
@@ -124,5 +155,9 @@ class BoardGame {
         bggId: bggId ?? this.bggId,
         isExpansion: isExpansion ?? this.isExpansion,
         baseGameId: baseGameId ?? this.baseGameId,
+        categories: categories ?? this.categories,
+        mechanics: mechanics ?? this.mechanics,
+        yearPublished: yearPublished ?? this.yearPublished,
+        minAge: minAge ?? this.minAge,
       );
 }

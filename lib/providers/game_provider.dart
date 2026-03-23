@@ -33,6 +33,10 @@ class GameProvider with ChangeNotifier {
     String? bggId,
     bool isExpansion = false,
     String? baseGameId,
+    List<String> categories = const [],
+    List<String> mechanics = const [],
+    int? yearPublished,
+    int? minAge,
   }) async {
     final game = BoardGame(
       id: _uuid.v4(),
@@ -54,6 +58,10 @@ class GameProvider with ChangeNotifier {
       bggId: bggId,
       isExpansion: isExpansion,
       baseGameId: baseGameId,
+      categories: categories,
+      mechanics: mechanics,
+      yearPublished: yearPublished,
+      minAge: minAge,
     );
     await _db.insertGame(game);
     _games.add(game);

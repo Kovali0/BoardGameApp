@@ -15,6 +15,9 @@ class BggSearchResult {
   final double? bggRating;
   final double? complexity;
   final bool isExpansion; // true if type=boardgameexpansion on BGG
+  final List<String> categories;
+  final List<String> mechanics;
+  final int? minAge;
 
   const BggSearchResult({
     required this.id,
@@ -29,6 +32,9 @@ class BggSearchResult {
     this.bggRating,
     this.complexity,
     this.isExpansion = false,
+    this.categories = const [],
+    this.mechanics = const [],
+    this.minAge,
   });
 }
 
@@ -45,6 +51,9 @@ class BggGameDetail {
   final int? maxPlaytime;
   final double? bggRating;
   final double? complexity;
+  final List<String> categories;
+  final List<String> mechanics;
+  final int? minAge;
 
   const BggGameDetail({
     required this.id,
@@ -59,6 +68,9 @@ class BggGameDetail {
     this.maxPlaytime,
     this.bggRating,
     this.complexity,
+    this.categories = const [],
+    this.mechanics = const [],
+    this.minAge,
   });
 }
 
@@ -201,6 +213,26 @@ class BggService {
       final complexity =
           complexityStr != null ? double.tryParse(complexityStr) : null;
 
+      final categories = item
+          .findAllElements('link')
+          .where((e) => e.getAttribute('type') == 'boardgamecategory')
+          .map((e) => e.getAttribute('value'))
+          .where((v) => v != null && v.isNotEmpty)
+          .cast<String>()
+          .toList();
+
+      final mechanics = item
+          .findAllElements('link')
+          .where((e) => e.getAttribute('type') == 'boardgamemechanic')
+          .map((e) => e.getAttribute('value'))
+          .where((v) => v != null && v.isNotEmpty)
+          .cast<String>()
+          .toList();
+
+      final minAgeStr =
+          item.findAllElements('minage').firstOrNull?.getAttribute('value');
+      final minAge = minAgeStr != null ? int.tryParse(minAgeStr) : null;
+
       results.add(BggSearchResult(
         id: id,
         name: name,
@@ -214,6 +246,9 @@ class BggService {
         bggRating: (bggRating != null && bggRating > 0) ? bggRating : null,
         complexity: (complexity != null && complexity > 0) ? complexity : null,
         isExpansion: isExpansion,
+        categories: categories,
+        mechanics: mechanics,
+        minAge: (minAge != null && minAge > 0) ? minAge : null,
       ));
     }
 
@@ -304,6 +339,26 @@ class BggService {
     final complexity =
         complexityStr != null ? double.tryParse(complexityStr) : null;
 
+    final categories = item
+        .findAllElements('link')
+        .where((e) => e.getAttribute('type') == 'boardgamecategory')
+        .map((e) => e.getAttribute('value'))
+        .where((v) => v != null && v.isNotEmpty)
+        .cast<String>()
+        .toList();
+
+    final mechanics = item
+        .findAllElements('link')
+        .where((e) => e.getAttribute('type') == 'boardgamemechanic')
+        .map((e) => e.getAttribute('value'))
+        .where((v) => v != null && v.isNotEmpty)
+        .cast<String>()
+        .toList();
+
+    final minAgeStr =
+        item.findAllElements('minage').firstOrNull?.getAttribute('value');
+    final minAge = minAgeStr != null ? int.tryParse(minAgeStr) : null;
+
     return BggGameDetail(
       id: id,
       name: name,
@@ -317,6 +372,9 @@ class BggService {
       maxPlaytime: maxPlaytime,
       bggRating: (bggRating != null && bggRating > 0) ? bggRating : null,
       complexity: (complexity != null && complexity > 0) ? complexity : null,
+      categories: categories,
+      mechanics: mechanics,
+      minAge: (minAge != null && minAge > 0) ? minAge : null,
     );
   }
 

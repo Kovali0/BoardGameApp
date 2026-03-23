@@ -41,6 +41,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
 
   String? _bggId;
   bool _isExpansion = false;
+  List<String> _categories = [];
+  List<String> _mechanics = [];
+  int? _yearPublished;
+  int? _minAge;
 
   bool get _isEditing => widget.game != null;
 
@@ -69,6 +73,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
     _thumbnailUrl = g?.thumbnailUrl;
     _bggId = g?.bggId;
     _isExpansion = g?.isExpansion ?? false;
+    _categories = g?.categories ?? [];
+    _mechanics = g?.mechanics ?? [];
+    _yearPublished = g?.yearPublished;
+    _minAge = g?.minAge;
   }
 
   @override
@@ -149,6 +157,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
             result.bggRating?.toStringAsFixed(1) ?? '';
         _complexityController.text =
             result.complexity?.toStringAsFixed(1) ?? '';
+        _categories = result.categories;
+        _mechanics = result.mechanics;
+        _yearPublished = result.year;
+        _minAge = result.minAge;
       });
       final s = context.read<LanguageProvider>().strings;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -197,6 +209,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
         myWeight: myWeight,
         bggId: _bggId,
         isExpansion: _isExpansion,
+        categories: _categories,
+        mechanics: _mechanics,
       ));
     } else {
       await provider.addGame(
@@ -215,6 +229,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
         myWeight: myWeight,
         bggId: _bggId,
         isExpansion: _isExpansion,
+        categories: _categories,
+        mechanics: _mechanics,
+        yearPublished: _yearPublished,
+        minAge: _minAge,
       );
     }
     if (mounted) Navigator.pop(context);
