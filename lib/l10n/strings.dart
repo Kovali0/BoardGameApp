@@ -228,6 +228,18 @@ abstract class AppStrings {
   String get statsDraws;
   String get statsNeverPlayedTogether;
 
+  // Teams
+  String get teamGame;
+  String get teamGameSub;
+  String get teamCount;
+  String teamNameHint(int n);
+  String get teamAssign;
+  String get statsBestTeams;
+  String get statsBestPartner;
+  String get statsWorstPartner;
+  String get statsPartnerSessions;
+  String get statsPartnerWins;
+
   // Wishlist
   String get navWishlist;
   String get wishlistTitle;
@@ -568,6 +580,18 @@ class EnStrings extends AppStrings {
   @override String get statsDraws => 'Draws';
   @override String get statsNeverPlayedTogether => 'These players have never played together.';
 
+  // Teams
+  @override String get teamGame => 'Team game';
+  @override String get teamGameSub => 'Players compete in teams';
+  @override String get teamCount => 'Number of teams';
+  @override String teamNameHint(int n) => 'Team $n';
+  @override String get teamAssign => 'Team';
+  @override String get statsBestTeams => 'BEST TEAMS';
+  @override String get statsBestPartner => 'Best team partner';
+  @override String get statsWorstPartner => 'Worst team partner';
+  @override String get statsPartnerSessions => 'Sessions together';
+  @override String get statsPartnerWins => 'Wins together';
+
   // Wishlist
   @override String get navWishlist => 'Wishlist';
   @override String get wishlistTitle => 'Wishlist';
@@ -901,6 +925,18 @@ class PlStrings extends AppStrings {
   @override String get statsTogetherSessions => 'Razem';
   @override String get statsDraws => 'Remisy';
   @override String get statsNeverPlayedTogether => 'Ci gracze nigdy razem nie grali.';
+
+  // Teams
+  @override String get teamGame => 'Gra drużynowa';
+  @override String get teamGameSub => 'Gracze grają w drużynach';
+  @override String get teamCount => 'Liczba drużyn';
+  @override String teamNameHint(int n) => 'Drużyna $n';
+  @override String get teamAssign => 'Drużyna';
+  @override String get statsBestTeams => 'NAJLEPSZE DRUŻYNY';
+  @override String get statsBestPartner => 'Najlepszy partner';
+  @override String get statsWorstPartner => 'Najgorszy partner';
+  @override String get statsPartnerSessions => 'Sesje razem';
+  @override String get statsPartnerWins => 'Wygrane razem';
 
   // Wishlist
   @override String get navWishlist => 'Życzenia';

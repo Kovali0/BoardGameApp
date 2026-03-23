@@ -8,12 +8,22 @@ import '../../providers/settings_provider.dart';
 import '../../models/board_game.dart';
 import 'end_session_screen.dart';
 
+const _kTeamColors = [
+  Color(0xFF1E88E5),
+  Color(0xFFE53935),
+  Color(0xFF43A047),
+  Color(0xFF8E24AA),
+  Color(0xFFFF7043),
+  Color(0xFF00ACC1),
+];
+
 class ActiveSessionScreen extends StatefulWidget {
   final BoardGame game;
   final List<String> players;
   final String starterName;
   final bool isFromCollection;
   final List<String> expansionIds;
+  final Map<String, String> teamAssignments;
 
   const ActiveSessionScreen({
     super.key,
@@ -22,6 +32,7 @@ class ActiveSessionScreen extends StatefulWidget {
     required this.starterName,
     this.isFromCollection = true,
     this.expansionIds = const [],
+    this.teamAssignments = const {},
   });
 
   @override
@@ -120,6 +131,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
           durationSeconds: _elapsedSeconds,
           isFromCollection: widget.isFromCollection,
           expansionIds: widget.expansionIds,
+          teamAssignments: widget.teamAssignments,
         ),
       ),
     );
@@ -205,12 +217,20 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 alignment: WrapAlignment.center,
-                children: widget.players
-                    .map((p) => Chip(
-                          avatar: const Icon(Icons.person, size: 16),
-                          label: Text(p),
-                        ))
-                    .toList(),
+                children: widget.players.map((p) {
+                  final teamName = widget.teamAssignments[p];
+                  final teamNames = widget.teamAssignments.values.toSet().toList()..sort();
+                  final teamIdx = teamName != null ? teamNames.indexOf(teamName) : -1;
+                  return Chip(
+                    avatar: teamName != null && teamIdx >= 0
+                        ? CircleAvatar(
+                            backgroundColor: _kTeamColors[teamIdx % _kTeamColors.length],
+                            child: const SizedBox.shrink(),
+                          )
+                        : const Icon(Icons.person, size: 16),
+                    label: Text(p),
+                  );
+                }).toList(),
               ),
               Row(
                 children: [

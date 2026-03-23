@@ -5,6 +5,7 @@ class PlayerResult {
   final int? score;
   final int rank;
   final bool startedGame;
+  final String? teamName;
 
   const PlayerResult({
     required this.id,
@@ -13,6 +14,7 @@ class PlayerResult {
     this.score,
     required this.rank,
     required this.startedGame,
+    this.teamName,
   });
 
   Map<String, dynamic> toMap() => {
@@ -22,6 +24,7 @@ class PlayerResult {
         'score': score,
         'rank': rank,
         'started_game': startedGame ? 1 : 0,
+        'team_name': teamName,
       };
 
   factory PlayerResult.fromMap(Map<String, dynamic> map) => PlayerResult(
@@ -31,5 +34,6 @@ class PlayerResult {
         score: map['score'] as int?,
         rank: map['rank'] as int,
         startedGame: (map['started_game'] as int) == 1,
+        teamName: map['team_name'] as String?,
       );
 }

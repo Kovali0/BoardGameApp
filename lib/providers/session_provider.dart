@@ -36,6 +36,7 @@ class SessionProvider with ChangeNotifier {
               score: p['score'] as int?,
               rank: p['rank'] as int,
               startedGame: p['startedGame'] as bool? ?? false,
+              teamName: p['teamName'] as String?,
             ))
         .toList();
 

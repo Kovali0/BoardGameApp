@@ -9,6 +9,7 @@ class GameResultsScreen extends StatelessWidget {
   final String gameName;
   final int durationSeconds;
   final List<Map<String, dynamic>> playerResults; // {name, rank, score}
+  final Map<String, String> teamAssignments;
 
   const GameResultsScreen({
     super.key,
@@ -16,6 +17,7 @@ class GameResultsScreen extends StatelessWidget {
     required this.gameName,
     required this.durationSeconds,
     required this.playerResults,
+    this.teamAssignments = const {},
   });
 
   String get _formattedDuration {
@@ -36,6 +38,8 @@ class GameResultsScreen extends StatelessWidget {
           preselectedGame: game,
           prefilledPlayers: playerNames,
           prefilledGuestGameName: game == null ? gameName : null,
+          prefilledTeamAssignments:
+              teamAssignments.isNotEmpty ? teamAssignments : null,
         ),
       ),
     );

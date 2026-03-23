@@ -10,12 +10,14 @@ class RandomStarterScreen extends StatefulWidget {
   final List<String> players;
   final bool isFromCollection;
   final List<String> expansionIds;
+  final Map<String, String> teamAssignments;
   const RandomStarterScreen({
     super.key,
     required this.game,
     required this.players,
     this.isFromCollection = true,
     this.expansionIds = const [],
+    this.teamAssignments = const {},
   });
 
   @override
@@ -172,6 +174,7 @@ class _RandomStarterScreenState extends State<RandomStarterScreen>
                       starterName: _winner!,
                       isFromCollection: widget.isFromCollection,
                       expansionIds: widget.expansionIds,
+                      teamAssignments: widget.teamAssignments,
                     ),
                   ),
                 ),

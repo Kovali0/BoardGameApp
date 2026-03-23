@@ -265,6 +265,83 @@ class _StatisticsContent extends StatelessWidget {
           ),
           const SizedBox(height: 20),
         ],
+
+        // Best teams
+        ...() {
+          final teamStats =
+              <String, ({List<String> players, int sessions, int wins})>{};
+          for (final sess in sessions) {
+            final teamPlayers = <String, List<String>>{};
+            for (final p in sess.players) {
+              if (p.teamName != null && p.teamName!.isNotEmpty) {
+                teamPlayers.putIfAbsent(p.teamName!, () => []).add(p.playerName);
+              }
+            }
+            if (teamPlayers.isEmpty) continue;
+            for (final entry in teamPlayers.entries) {
+              final sorted = [...entry.value]..sort();
+              final key = sorted.join(',');
+              final isWin = sess.players
+                  .where((p) => p.teamName == entry.key)
+                  .any((p) => p.rank == 1);
+              final prev = teamStats[key];
+              teamStats[key] = (
+                players: sorted,
+                sessions: (prev?.sessions ?? 0) + 1,
+                wins: (prev?.wins ?? 0) + (isWin ? 1 : 0),
+              );
+            }
+          }
+          if (teamStats.isEmpty) return <Widget>[];
+          final top = teamStats.values.toList()
+            ..sort((a, b) {
+              final cmp = b.wins.compareTo(a.wins);
+              return cmp != 0 ? cmp : b.sessions.compareTo(a.sessions);
+            });
+          final display = top.take(3).toList();
+          return [
+            _SectionHeader(s.statsBestTeams),
+            Card(
+              child: Column(
+                children: [
+                  for (int i = 0; i < display.length; i++) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Text(_medal(i),
+                              style: const TextStyle(fontSize: 18)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  display[i].players.join(' & '),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '${display[i].sessions} ${s.statsSessions.toLowerCase()} · ${display[i].wins} ${s.statsWins.toLowerCase()}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (i < display.length - 1) const Divider(height: 1),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ];
+        }(),
       ];
     }
 
@@ -1184,6 +1261,43 @@ class _PlayerDetailScreen extends StatelessWidget {
     final games = gameMap.values.toList()
       ..sort((a, b) => b.sessionCount.compareTo(a.sessionCount));
 
+    // ── Partner stats ──
+    final partnerStats = <String, ({int sessions, int wins})>{};
+    for (final sess in sessions) {
+      final myResult =
+          sess.players.where((p) => p.playerName == playerName).firstOrNull;
+      if (myResult == null ||
+          myResult.teamName == null ||
+          myResult.teamName!.isEmpty) continue;
+      final myTeam = myResult.teamName!;
+      final isWin = myResult.rank == 1;
+      for (final p in sess.players) {
+        if (p.playerName == playerName) continue;
+        if (p.teamName != myTeam) continue;
+        final prev = partnerStats[p.playerName];
+        partnerStats[p.playerName] = (
+          sessions: (prev?.sessions ?? 0) + 1,
+          wins: (prev?.wins ?? 0) + (isWin ? 1 : 0),
+        );
+      }
+    }
+    String? bestPartner;
+    double bestRate = -1;
+    String? worstPartner;
+    double worstRate = 2.0;
+    for (final entry in partnerStats.entries) {
+      if (entry.value.sessions < 2) continue;
+      final rate = entry.value.wins / entry.value.sessions;
+      if (rate > bestRate) {
+        bestRate = rate;
+        bestPartner = entry.key;
+      }
+      if (rate < worstRate) {
+        worstRate = rate;
+        worstPartner = entry.key;
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(title: Text(playerName)),
       body: ListView(
@@ -1224,7 +1338,34 @@ class _PlayerDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // ── Section 2: Game Breakdown ──
+          // ── Section 2: Team Partners ──
+          if (bestPartner != null || worstPartner != null) ...[
+            _SectionHeader(s.statsBestTeams),
+            Card(
+              child: Column(
+                children: [
+                  if (bestPartner != null) ...[
+                    _RecordRow(
+                      label: s.statsBestPartner,
+                      value:
+                          '$bestPartner  •  ${(bestRate * 100).round()}% (${partnerStats[bestPartner]!.sessions} ${s.statsPartnerSessions.toLowerCase()})',
+                    ),
+                  ],
+                  if (bestPartner != null && worstPartner != null && bestPartner != worstPartner) ...[
+                    const Divider(height: 1),
+                    _RecordRow(
+                      label: s.statsWorstPartner,
+                      value:
+                          '$worstPartner  •  ${(worstRate * 100).round()}% (${partnerStats[worstPartner]!.sessions} ${s.statsPartnerSessions.toLowerCase()})',
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // ── Section 3: Game Breakdown ──
           if (games.isNotEmpty) ...[
             _SectionHeader(s.statsGameBreakdown),
             for (final game in games) ...[

@@ -303,6 +303,10 @@ class _SessionCard extends StatelessWidget {
 
   void _rematch(BuildContext context, game) {
     final playerNames = session.players.map((p) => p.playerName).toList();
+    final teamAssignments = <String, String>{};
+    for (final p in session.players) {
+      if (p.teamName != null) teamAssignments[p.playerName] = p.teamName!;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -313,6 +317,8 @@ class _SessionCard extends StatelessWidget {
           prefilledExpansionIds: session.expansionIds.isNotEmpty
               ? session.expansionIds
               : null,
+          prefilledTeamAssignments:
+              teamAssignments.isNotEmpty ? teamAssignments : null,
         ),
       ),
     );

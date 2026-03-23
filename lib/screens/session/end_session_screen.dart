@@ -6,6 +6,14 @@ import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
 import 'game_results_screen.dart';
 
+const _kTeamColors = [
+  Color(0xFF1E88E5),
+  Color(0xFFE53935),
+  Color(0xFF43A047),
+  Color(0xFF8E24AA),
+  Color(0xFFFF7043),
+  Color(0xFF00ACC1),
+];
 
 class EndSessionScreen extends StatefulWidget {
   final BoardGame game;
@@ -15,6 +23,7 @@ class EndSessionScreen extends StatefulWidget {
   final int durationSeconds;
   final bool isFromCollection;
   final List<String> expansionIds;
+  final Map<String, String> teamAssignments;
 
   const EndSessionScreen({
     super.key,
@@ -25,6 +34,7 @@ class EndSessionScreen extends StatefulWidget {
     required this.durationSeconds,
     this.isFromCollection = true,
     this.expansionIds = const [],
+    this.teamAssignments = const {},
   });
 
   @override
@@ -37,8 +47,11 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
   final _tiebreakerController = TextEditingController();
 
   // For each base rank that has a tie, stores the user-ordered list of player names.
-  // First in list = wins the tiebreak (gets the lower rank number).
   final Map<int, List<String>> _tieOrder = {};
+
+  // Team mode
+  final Map<String, TextEditingController> _teamScoreControllers = {};
+  Map<String, int?> _teamScores = {};
 
   String get _formattedDuration {
     final h = widget.durationSeconds ~/ 3600;
@@ -60,6 +73,15 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
               'scoreController': TextEditingController(),
             })
         .toList();
+
+    // Init team score controllers
+    if (widget.teamAssignments.isNotEmpty) {
+      final teams = widget.teamAssignments.values.toSet();
+      for (final team in teams) {
+        _teamScoreControllers[team] = TextEditingController();
+        _teamScores[team] = null;
+      }
+    }
   }
 
   @override
@@ -69,8 +91,57 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
     for (final p in _playerData) {
       (p['scoreController'] as TextEditingController).dispose();
     }
+    for (final c in _teamScoreControllers.values) c.dispose();
     super.dispose();
   }
+
+  // ── Team helpers ──
+
+  Map<String, List<String>> get _teamGroups {
+    if (widget.teamAssignments.isEmpty) return {};
+    final groups = <String, List<String>>{};
+    for (final name in widget.players) {
+      final team = widget.teamAssignments[name];
+      if (team != null) groups.putIfAbsent(team, () => []).add(name);
+    }
+    return groups;
+  }
+
+  List<String> get _sortedTeamNames => _teamGroups.keys.toList()..sort();
+
+  Color _teamColor(String teamName) {
+    final idx = _sortedTeamNames.indexOf(teamName);
+    return _kTeamColors[(idx < 0 ? 0 : idx) % _kTeamColors.length];
+  }
+
+  void _onTeamScoreChanged() {
+    for (final entry in _teamScoreControllers.entries) {
+      final text = entry.value.text.trim();
+      _teamScores[entry.key] = text.isEmpty ? null : int.tryParse(text);
+    }
+    setState(() {});
+  }
+
+  Map<String, int> _computeTeamRanks() {
+    final teams = _teamGroups.keys.toList();
+    final scored = teams.where((t) => _teamScores[t] != null).toList()
+      ..sort((a, b) => _teamScores[b]!.compareTo(_teamScores[a]!));
+
+    final result = <String, int>{};
+    for (final t in teams) {
+      if (_teamScores[t] == null) result[t] = 0;
+    }
+    int rank = 1;
+    for (int i = 0; i < scored.length; i++) {
+      if (i > 0 && _teamScores[scored[i]] != _teamScores[scored[i - 1]]) {
+        rank = i + 1;
+      }
+      result[scored[i]] = rank;
+    }
+    return result;
+  }
+
+  // ── Individual helpers ──
 
   void _readScores() {
     for (final p in _playerData) {
@@ -151,9 +222,6 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
   }
 
   Future<void> _save() async {
-    _readScores();
-    final finalRanks = _computeFinalRanks();
-
     final tieNote = _tiebreakerController.text.trim();
     final generalNote = _notesController.text.trim();
     String? combinedNotes;
@@ -165,20 +233,54 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
       combinedNotes = generalNote;
     }
 
+    List<Map<String, dynamic>> saveData;
+    List<Map<String, dynamic>> resultsData;
+
+    if (widget.teamAssignments.isNotEmpty) {
+      // Team mode
+      final teamRanks = _computeTeamRanks();
+      saveData = _playerData.map((p) {
+        final name = p['name'] as String;
+        final team = widget.teamAssignments[name] ?? '';
+        return {
+          'name': name,
+          'score': _teamScores[team],
+          'rank': teamRanks[team] ?? 0,
+          'startedGame': p['startedGame'],
+          'teamName': team.isNotEmpty ? team : null,
+        };
+      }).toList();
+      resultsData = saveData
+          .map((p) => {'name': p['name'], 'rank': p['rank'], 'score': p['score']})
+          .toList();
+    } else {
+      // Individual mode
+      _readScores();
+      final finalRanks = _computeFinalRanks();
+      saveData = _playerData
+          .map((p) => {
+                'name': p['name'],
+                'score': p['score'],
+                'rank': finalRanks[p['name'] as String] ?? 0,
+                'startedGame': p['startedGame'],
+              })
+          .toList();
+      resultsData = _playerData
+          .map((p) => {
+                'name': p['name'],
+                'rank': finalRanks[p['name'] as String] ?? 0,
+                'score': p['score'],
+              })
+          .toList();
+    }
+
     await context.read<SessionProvider>().saveSession(
           gameId: widget.game.id,
           gameName: widget.game.name,
           startTime: widget.startTime,
           endTime: DateTime.now(),
           durationSeconds: widget.durationSeconds,
-          playerData: _playerData
-              .map((p) => {
-                    'name': p['name'],
-                    'score': p['score'],
-                    'rank': finalRanks[p['name'] as String] ?? 0,
-                    'startedGame': p['startedGame'],
-                  })
-              .toList(),
+          playerData: saveData,
           notes: combinedNotes,
           isFromCollection: widget.isFromCollection,
           expansionIds: widget.expansionIds,
@@ -194,13 +296,8 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
             game: widget.isFromCollection ? widget.game : null,
             gameName: widget.game.name,
             durationSeconds: widget.durationSeconds,
-            playerResults: _playerData
-                .map((p) => {
-                      'name': p['name'],
-                      'rank': finalRanks[p['name'] as String] ?? 0,
-                      'score': p['score'],
-                    })
-                .toList(),
+            playerResults: resultsData,
+            teamAssignments: widget.teamAssignments,
           ),
         ),
       );
@@ -208,14 +305,116 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
   }
 
 
+  Widget _buildTeamCard(
+    String teamName,
+    List<String> members,
+    Map<String, int> teamRanks,
+    ThemeData theme,
+    dynamic s,
+  ) {
+    final rank = teamRanks[teamName] ?? 0;
+    final color = _teamColor(teamName);
+    final controller = _teamScoreControllers[teamName];
+    if (controller == null) return const SizedBox.shrink();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 4),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            // Rank badge
+            SizedBox(
+              width: 52,
+              child: rank == 0
+                  ? const Center(
+                      child: Text('—',
+                          style: TextStyle(color: Colors.grey, fontSize: 18)))
+                  : Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: rank == 1 ? Colors.amber : theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          s.ordinal(rank),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: rank == 1
+                                ? Colors.white
+                                : theme.colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(teamName,
+                          style:
+                              const TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    members.join(', '),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurfaceVariant),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              width: 90,
+              child: TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  hintText: s.resultsScore,
+                  isDense: true,
+                  border: const OutlineInputBorder(),
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(signed: true),
+                textAlign: TextAlign.center,
+                onChanged: (_) => _onTeamScoreChanged(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
     final theme = Theme.of(context);
-    final finalRanks = _computeFinalRanks();
-    final base = _computeBaseRanks();
-    final tieGroups = _computeTieGroups(base);
+    final isTeamMode = widget.teamAssignments.isNotEmpty;
+    final finalRanks = isTeamMode ? <String, int>{} : _computeFinalRanks();
+    final base = isTeamMode ? <String, int>{} : _computeBaseRanks();
+    final tieGroups = isTeamMode ? <int, List<String>>{} : _computeTieGroups(base);
     final hasTies = tieGroups.isNotEmpty;
+    final teamRanks = isTeamMode ? _computeTeamRanks() : <String, int>{};
 
     return Scaffold(
       appBar: AppBar(
@@ -286,91 +485,98 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
           ),
           const SizedBox(height: 8),
 
-          // Player score cards
-          ...List.generate(_playerData.length, (i) {
-            final p = _playerData[i];
-            final name = p['name'] as String;
-            final rank = finalRanks[name] ?? 0;
-            final inTieGroup = tieGroups.values.any((g) => g.contains(name));
+          // Score cards — team mode or individual mode
+          if (isTeamMode) ...[
+            for (final entry in _teamGroups.entries) ...[
+              _buildTeamCard(entry.key, entry.value, teamRanks, theme, s),
+              const SizedBox(height: 8),
+            ],
+          ] else ...[
+            ...List.generate(_playerData.length, (i) {
+              final p = _playerData[i];
+              final name = p['name'] as String;
+              final rank = finalRanks[name] ?? 0;
+              final inTieGroup =
+                  tieGroups.values.any((g) => g.contains(name));
 
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    // Auto rank badge
-                    SizedBox(
-                      width: 52,
-                      child: rank == 0
-                          ? const Center(
-                              child: Text('—',
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 18)))
-                          : Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: inTieGroup
-                                      ? Colors.orange
-                                      : rank == 1
-                                          ? Colors.amber
-                                          : theme.colorScheme.primaryContainer,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  s.ordinal(rank),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                    color: inTieGroup || rank == 1
-                                        ? Colors.white
-                                        : theme
-                                            .colorScheme.onPrimaryContainer,
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 52,
+                        child: rank == 0
+                            ? const Center(
+                                child: Text('—',
+                                    style: TextStyle(
+                                        color: Colors.grey, fontSize: 18)))
+                            : Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: inTieGroup
+                                        ? Colors.orange
+                                        : rank == 1
+                                            ? Colors.amber
+                                            : theme.colorScheme.primaryContainer,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    s.ordinal(rank),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: inTieGroup || rank == 1
+                                          ? Colors.white
+                                          : theme.colorScheme.onPrimaryContainer,
+                                    ),
                                   ),
                                 ),
                               ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (p['startedGame'] as bool)
-                            Text(s.endSessionStarted,
-                                style: const TextStyle(
-                                    fontSize: 11, color: Colors.amber)),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: TextField(
-                        controller:
-                            p['scoreController'] as TextEditingController,
-                        decoration: InputDecoration(
-                          hintText: s.resultsScore,
-                          isDense: true,
-                          border: OutlineInputBorder(),
+                            if (p['startedGame'] as bool)
+                              Text(s.endSessionStarted,
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Colors.amber)),
+                          ],
                         ),
-                        keyboardType:
-                            const TextInputType.numberWithOptions(signed: true),
-                        textAlign: TextAlign.center,
-                        onChanged: (_) => _onScoreChanged(),
                       ),
-                    ),
-                  ],
+                      Expanded(
+                        child: TextField(
+                          controller:
+                              p['scoreController'] as TextEditingController,
+                          decoration: InputDecoration(
+                            hintText: s.resultsScore,
+                            isDense: true,
+                            border: const OutlineInputBorder(),
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(
+                              signed: true),
+                          textAlign: TextAlign.center,
+                          onChanged: (_) => _onScoreChanged(),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          }),
+              );
+            }),
+          ],
 
           // Tie resolution section
           if (hasTies) ...[

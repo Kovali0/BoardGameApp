@@ -7,12 +7,21 @@ import '../../providers/settings_provider.dart';
 import '../../models/board_game.dart';
 import 'random_starter_screen.dart';
 
+const _kTeamColors = [
+  Color(0xFF1E88E5),
+  Color(0xFFE53935),
+  Color(0xFF43A047),
+  Color(0xFF8E24AA),
+  Color(0xFFFF7043),
+  Color(0xFF00ACC1),
+];
 
 class NewSessionScreen extends StatefulWidget {
   final BoardGame? preselectedGame;
   final List<String>? prefilledPlayers;
   final String? prefilledGuestGameName;
   final List<String>? prefilledExpansionIds;
+  final Map<String, String>? prefilledTeamAssignments;
 
   const NewSessionScreen({
     super.key,
@@ -20,6 +29,7 @@ class NewSessionScreen extends StatefulWidget {
     this.prefilledPlayers,
     this.prefilledGuestGameName,
     this.prefilledExpansionIds,
+    this.prefilledTeamAssignments,
   });
 
   @override
@@ -32,7 +42,13 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
   late final TextEditingController _guestGameNameController;
   final List<TextEditingController> _playerControllers = [];
   final Set<String> _selectedExpansionIds = {};
-  String? _expansionOriginName; // set when auto-swapped from an expansion
+  String? _expansionOriginName;
+
+  // Teams
+  bool _teamsEnabled = false;
+  int _teamCount = 2;
+  final List<TextEditingController> _teamNameControllers = [];
+  final List<int> _playerTeamIndices = []; // per-player team index (0-based)
 
   @override
   void initState() {
@@ -77,21 +93,58 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
       _playerControllers.add(TextEditingController());
       _playerControllers.add(TextEditingController());
     }
+
+    // Init 6 team name controllers (only first _teamCount are shown)
+    for (int i = 0; i < 6; i++) {
+      _teamNameControllers.add(TextEditingController());
+    }
+
+    // Init player team indices (default: round-robin)
+    for (int i = 0; i < _playerControllers.length; i++) {
+      _playerTeamIndices.add(i % 2);
+    }
+
+    // Restore teams from rematch
+    if (widget.prefilledTeamAssignments != null &&
+        widget.prefilledTeamAssignments!.isNotEmpty) {
+      _teamsEnabled = true;
+      final assignments = widget.prefilledTeamAssignments!;
+      // Collect team names in order of first appearance
+      final teamOrder = <String>[];
+      for (final name in widget.prefilledPlayers ?? []) {
+        final t = assignments[name];
+        if (t != null && !teamOrder.contains(t)) teamOrder.add(t);
+      }
+      _teamCount = teamOrder.length.clamp(2, 6);
+      for (int i = 0; i < teamOrder.length; i++) {
+        _teamNameControllers[i].text = teamOrder[i];
+      }
+      // Set player team indices
+      _playerTeamIndices.clear();
+      for (int i = 0; i < _playerControllers.length; i++) {
+        final name = _playerControllers[i].text.trim();
+        final t = assignments[name];
+        final idx = t != null ? teamOrder.indexOf(t) : (i % _teamCount);
+        _playerTeamIndices.add(idx.clamp(0, _teamCount - 1));
+      }
+    }
   }
 
   @override
   void dispose() {
     _guestGameNameController.dispose();
-    for (final c in _playerControllers) {
-      c.dispose();
-    }
+    for (final c in _playerControllers) c.dispose();
+    for (final c in _teamNameControllers) c.dispose();
     super.dispose();
   }
 
   void _addPlayer() {
     final maxP = _isGuestGame ? 20 : (_selectedGame?.maxPlayers ?? 20);
     if (_playerControllers.length < maxP) {
-      setState(() => _playerControllers.add(TextEditingController()));
+      setState(() {
+        _playerControllers.add(TextEditingController());
+        _playerTeamIndices.add((_playerControllers.length - 1) % _teamCount);
+      });
     }
   }
 
@@ -100,8 +153,50 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
       setState(() {
         _playerControllers[index].dispose();
         _playerControllers.removeAt(index);
+        _playerTeamIndices.removeAt(index);
       });
     }
+  }
+
+  void _quickAddPlayer(String name) {
+    for (final c in _playerControllers) {
+      if (c.text.trim().isEmpty) {
+        setState(() => c.text = name);
+        return;
+      }
+    }
+    final maxP = _isGuestGame ? 20 : (_selectedGame?.maxPlayers ?? 20);
+    if (_playerControllers.length < maxP) {
+      setState(() {
+        _playerControllers.add(TextEditingController(text: name));
+        _playerTeamIndices.add((_playerControllers.length - 1) % _teamCount);
+      });
+    }
+  }
+
+  void _autoAssignTeams() {
+    for (int i = 0; i < _playerTeamIndices.length; i++) {
+      _playerTeamIndices[i] = i % _teamCount;
+    }
+  }
+
+  String _resolvedTeamName(int teamIdx) {
+    final text = _teamNameControllers[teamIdx].text.trim();
+    return text.isEmpty
+        ? context.read<LanguageProvider>().strings.teamNameHint(teamIdx + 1)
+        : text;
+  }
+
+  Map<String, String> _buildTeamAssignments(List<String> players) {
+    final result = <String, String>{};
+    for (int i = 0; i < _playerControllers.length; i++) {
+      final name = _playerControllers[i].text.trim();
+      if (name.isEmpty) continue;
+      final teamIdx =
+          i < _playerTeamIndices.length ? _playerTeamIndices[i] : 0;
+      result[name] = _resolvedTeamName(teamIdx.clamp(0, _teamCount - 1));
+    }
+    return result;
   }
 
   void _startSession() {
@@ -116,6 +211,9 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
       );
       return;
     }
+
+    final teamAssignments =
+        _teamsEnabled ? _buildTeamAssignments(players) : <String, String>{};
 
     if (_isGuestGame) {
       final name = _guestGameNameController.text.trim();
@@ -139,6 +237,7 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
             game: tempGame,
             players: players,
             isFromCollection: false,
+            teamAssignments: teamAssignments,
           ),
         ),
       );
@@ -157,23 +256,10 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
             players: players,
             isFromCollection: true,
             expansionIds: _selectedExpansionIds.toList(),
+            teamAssignments: teamAssignments,
           ),
         ),
       );
-    }
-  }
-
-  void _quickAddPlayer(String name) {
-    // Fill the first empty slot, or add a new one
-    for (final c in _playerControllers) {
-      if (c.text.trim().isEmpty) {
-        setState(() => c.text = name);
-        return;
-      }
-    }
-    final maxP = _isGuestGame ? 20 : (_selectedGame?.maxPlayers ?? 20);
-    if (_playerControllers.length < maxP) {
-      setState(() => _playerControllers.add(TextEditingController(text: name)));
     }
   }
 
@@ -181,9 +267,14 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
     final defaultPlayers = context.watch<SettingsProvider>().defaultPlayers;
-    // Players not yet in any field
     final usedNames = _playerControllers.map((c) => c.text.trim()).toSet();
-    final availableQuick = defaultPlayers.where((p) => !usedNames.contains(p)).toList();
+    final availableQuick =
+        defaultPlayers.where((p) => !usedNames.contains(p)).toList();
+    final playerCount = _playerControllers
+        .where((c) => c.text.trim().isNotEmpty)
+        .length;
+    final maxTeams = playerCount.clamp(2, 6);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(s.newSessionTitle),
@@ -250,10 +341,14 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.casino),
                   ),
+                  isExpanded: true,
                   items: provider.games
                       .map((game) => DropdownMenuItem(
                             value: game,
-                            child: Text(game.name),
+                            child: Text(
+                              game.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ))
                       .toList(),
                   onChanged: (game) => setState(() {
@@ -359,35 +454,179 @@ class _NewSessionScreenState extends State<NewSessionScreen> {
           const SizedBox(height: 8),
           ...List.generate(
             _playerControllers.length,
-            (i) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
+            (i) {
+              final teamIdx = i < _playerTeamIndices.length
+                  ? _playerTeamIndices[i].clamp(0, _teamCount - 1)
+                  : 0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: _teamsEnabled
+                          ? _kTeamColors[teamIdx]
+                          : null,
+                      child: Text(
+                        '${i + 1}',
+                        style: TextStyle(
+                          color: _teamsEnabled ? Colors.white : null,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _playerControllers[i],
+                        decoration: InputDecoration(
+                          hintText: s.newSessionPlayerHint(i + 1),
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        textCapitalization: TextCapitalization.words,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    if (_teamsEnabled) ...[
+                      const SizedBox(width: 6),
+                      SizedBox(
+                        width: 110,
+                        child: DropdownButtonFormField<int>(
+                          value: teamIdx,
+                          isDense: true,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 8),
+                          ),
+                          items: List.generate(_teamCount, (ti) {
+                            return DropdownMenuItem(
+                              value: ti,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: _kTeamColors[ti],
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      _resolvedTeamName(ti),
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                          onChanged: (v) {
+                            if (v != null) {
+                              setState(() {
+                                while (_playerTeamIndices.length <= i) {
+                                  _playerTeamIndices.add(0);
+                                }
+                                _playerTeamIndices[i] = v;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                    if (_playerControllers.length > 2)
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline),
+                        onPressed: () => _removePlayer(i),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+
+          // ── Teams section ──
+          const SizedBox(height: 8),
+          SwitchListTile(
+            title: Text(s.teamGame),
+            subtitle: Text(s.teamGameSub,
+                style: const TextStyle(fontSize: 12)),
+            value: _teamsEnabled,
+            contentPadding: EdgeInsets.zero,
+            onChanged: (v) => setState(() {
+              _teamsEnabled = v;
+              if (v) _autoAssignTeams();
+            }),
+          ),
+          if (_teamsEnabled) ...[
+            const SizedBox(height: 4),
+            // Team count stepper
+            Row(
+              children: [
+                Text(s.teamCount,
+                    style: const TextStyle(fontSize: 14)),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  onPressed: _teamCount > 2
+                      ? () => setState(() {
+                            _teamCount--;
+                            // Reassign any player on removed team
+                            for (int i = 0; i < _playerTeamIndices.length; i++) {
+                              if (_playerTeamIndices[i] >= _teamCount) {
+                                _playerTeamIndices[i] = 0;
+                              }
+                            }
+                          })
+                      : null,
+                ),
+                Text('$_teamCount',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: _teamCount < maxTeams
+                      ? () => setState(() => _teamCount++)
+                      : null,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            // Team name inputs
+            for (int ti = 0; ti < _teamCount; ti++) ...[
+              Row(
                 children: [
-                  CircleAvatar(
-                    radius: 16,
-                    child: Text('${i + 1}'),
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: _kTeamColors[ti],
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: TextFormField(
-                      controller: _playerControllers[i],
+                      controller: _teamNameControllers[ti],
                       decoration: InputDecoration(
-                        hintText: s.newSessionPlayerHint(i + 1),
+                        hintText: s.teamNameHint(ti + 1),
                         border: const OutlineInputBorder(),
                         isDense: true,
                       ),
                       textCapitalization: TextCapitalization.words,
+                      onChanged: (_) => setState(() {}),
                     ),
                   ),
-                  if (_playerControllers.length > 2)
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
-                      onPressed: () => _removePlayer(i),
-                    ),
                 ],
               ),
-            ),
-          ),
+              const SizedBox(height: 6),
+            ],
+          ],
+
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: _startSession,

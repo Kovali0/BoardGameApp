@@ -22,7 +22,7 @@ class DatabaseHelper {
     final path = join(dbPath, 'board_game_manager.db');
     return openDatabase(
       path,
-      version: 11,
+      version: 12,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -88,6 +88,9 @@ class DatabaseHelper {
       await db.execute("ALTER TABLE games ADD COLUMN mechanics TEXT DEFAULT '[]'");
       await db.execute('ALTER TABLE games ADD COLUMN year_published INTEGER');
       await db.execute('ALTER TABLE games ADD COLUMN min_age INTEGER');
+    }
+    if (oldVersion < 12) {
+      await db.execute('ALTER TABLE player_results ADD COLUMN team_name TEXT');
     }
   }
 
@@ -158,7 +161,8 @@ class DatabaseHelper {
         player_name TEXT NOT NULL,
         score INTEGER,
         rank INTEGER NOT NULL,
-        started_game INTEGER NOT NULL
+        started_game INTEGER NOT NULL,
+        team_name TEXT
       )
     ''');
   }

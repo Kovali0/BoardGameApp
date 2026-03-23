@@ -8,6 +8,15 @@ import '../../providers/session_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../session/new_session_screen.dart';
 
+const _kTeamColors = [
+  Color(0xFF1E88E5),
+  Color(0xFFE53935),
+  Color(0xFF43A047),
+  Color(0xFF8E24AA),
+  Color(0xFFFF7043),
+  Color(0xFF00ACC1),
+];
+
 class SessionDetailScreen extends StatelessWidget {
   final GameSession session;
   const SessionDetailScreen({super.key, required this.session});
@@ -54,31 +63,70 @@ class SessionDetailScreen extends StatelessWidget {
           const SizedBox(height: 16),
           Text(s.sessionDetailResults, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          ...session.players.map((player) {
-            final medals = ['🥇', '🥈', '🥉'];
-            final medal = player.rank <= 3
-                ? medals[player.rank - 1]
-                : '${player.rank}.';
-            return Card(
-              margin: const EdgeInsets.only(bottom: 6),
-              child: ListTile(
-                leading: Text(medal,
-                    style: const TextStyle(fontSize: 24)),
-                title: Text(player.playerName,
-                    style:
-                        const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: player.startedGame
-                    ? Text(s.sessionDetailStartedGame,
-                        style: const TextStyle(color: Colors.amber))
-                    : null,
-                trailing: player.score != null
-                    ? Text('${player.score} pts',
-                        style:
-                            Theme.of(context).textTheme.titleMedium)
-                    : null,
-              ),
-            );
-          }),
+          ...() {
+            // Compute sorted team names for consistent color mapping
+            final teamNames = session.players
+                .map((p) => p.teamName)
+                .whereType<String>()
+                .toSet()
+                .toList()
+              ..sort();
+
+            return session.players.map((player) {
+              final medals = ['🥇', '🥈', '🥉'];
+              final medal = player.rank <= 3
+                  ? medals[player.rank - 1]
+                  : '${player.rank}.';
+              final teamIdx = player.teamName != null
+                  ? teamNames.indexOf(player.teamName!)
+                  : -1;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 6),
+                child: ListTile(
+                  leading: Text(medal, style: const TextStyle(fontSize: 24)),
+                  title: Row(
+                    children: [
+                      if (teamIdx >= 0) ...[
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: _kTeamColors[teamIdx % _kTeamColors.length],
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Flexible(
+                        child: Text(player.playerName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      if (player.teamName != null) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          player.teamName!,
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: teamIdx >= 0
+                                  ? _kTeamColors[teamIdx % _kTeamColors.length]
+                                  : Colors.grey),
+                        ),
+                      ],
+                    ],
+                  ),
+                  subtitle: player.startedGame
+                      ? Text(s.sessionDetailStartedGame,
+                          style: const TextStyle(color: Colors.amber))
+                      : null,
+                  trailing: player.score != null
+                      ? Text('${player.score} pts',
+                          style: Theme.of(context).textTheme.titleMedium)
+                      : null,
+                ),
+              );
+            }).toList();
+          }(),
           if (session.expansionIds.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(s.sessionExpansionsSection,
@@ -143,6 +191,10 @@ class SessionDetailScreen extends StatelessWidget {
         .where((g) => g.id == session.gameId)
         .firstOrNull;
     final playerNames = session.players.map((p) => p.playerName).toList();
+    final teamAssignments = <String, String>{};
+    for (final p in session.players) {
+      if (p.teamName != null) teamAssignments[p.playerName] = p.teamName!;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -153,6 +205,8 @@ class SessionDetailScreen extends StatelessWidget {
           prefilledExpansionIds: session.expansionIds.isNotEmpty
               ? session.expansionIds
               : null,
+          prefilledTeamAssignments:
+              teamAssignments.isNotEmpty ? teamAssignments : null,
         ),
       ),
     );

@@ -358,8 +358,12 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.casino),
                   ),
+                  isExpanded: true,
                   items: provider.games
-                      .map((g) => DropdownMenuItem(value: g, child: Text(g.name)))
+                      .map((g) => DropdownMenuItem(
+                            value: g,
+                            child: Text(g.name, overflow: TextOverflow.ellipsis),
+                          ))
                       .toList(),
                   onChanged: (g) => setState(() {
                     _selectedGame = g;
