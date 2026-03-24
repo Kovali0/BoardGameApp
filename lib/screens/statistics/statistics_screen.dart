@@ -7,6 +7,7 @@ import '../../models/game_session.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../services/stats_service.dart';
 
 // ─── Filter helpers ────────────────────────────────────────────────────────────
 
@@ -160,53 +161,20 @@ class _StatisticsContent extends StatelessWidget {
     final playedCount = allGames.where((g) => g.hasBeenPlayed).length;
     final unplayedCount = allGames.length - playedCount;
 
-    // Session-based widgets — only built when sessions exist (avoids .reduce crash)
+    // Session-based widgets — only built when sessions exist
     List<Widget> sessionWidgets = [];
     if (sessions.isNotEmpty) {
-      final totalSessions = sessions.length;
-      final uniqueGames = sessions.map((sess) => sess.gameId).toSet().length;
-      final totalSeconds = sessions.fold(0, (sum, sess) => sum + sess.durationSeconds);
-
-      final gameMap = <String, ({String name, int count, int seconds})>{};
-      for (final sess in sessions) {
-        final prev = gameMap[sess.gameId];
-        if (prev == null) {
-          gameMap[sess.gameId] = (name: sess.gameName, count: 1, seconds: sess.durationSeconds);
-        } else {
-          gameMap[sess.gameId] = (
-            name: prev.name,
-            count: prev.count + 1,
-            seconds: prev.seconds + sess.durationSeconds,
-          );
-        }
-      }
-      final topGames = gameMap.values.toList()
-        ..sort((a, b) => b.count.compareTo(a.count));
-
-      final longest = sessions.reduce((a, b) => a.durationSeconds > b.durationSeconds ? a : b);
-      final shortest = sessions.reduce((a, b) => a.durationSeconds < b.durationSeconds ? a : b);
-      final avgSeconds = totalSeconds ~/ totalSessions;
-
-      final winMap = <String, int>{};
-      for (final sess in sessions) {
-        for (final p in sess.players) {
-          if (p.rank == 1) {
-            winMap[p.playerName] = (winMap[p.playerName] ?? 0) + 1;
-          }
-        }
-      }
-      final hallOfFame = winMap.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
+      final g = StatsService.computeGlobalStats(sessions)!;
 
       sessionWidgets = [
         _SectionHeader(s.statsOverview),
         Row(
           children: [
-            Expanded(child: _StatCard(label: s.statsSessions, value: '$totalSessions')),
+            Expanded(child: _StatCard(label: s.statsSessions, value: '${g.totalSessions}')),
             const SizedBox(width: 8),
-            Expanded(child: _StatCard(label: s.statsTimePlayed, value: _formatSeconds(totalSeconds))),
+            Expanded(child: _StatCard(label: s.statsTimePlayed, value: _formatSeconds(g.totalSeconds))),
             const SizedBox(width: 8),
-            Expanded(child: _StatCard(label: s.statsGames, value: '$uniqueGames')),
+            Expanded(child: _StatCard(label: s.statsGames, value: '${g.uniqueGames}')),
           ],
         ),
         const SizedBox(height: 20),
@@ -214,13 +182,13 @@ class _StatisticsContent extends StatelessWidget {
         Card(
           child: Column(
             children: [
-              for (int i = 0; i < topGames.length; i++)
+              for (int i = 0; i < g.topGamesByCount.length; i++)
                 _GameRankRow(
                   medal: _medal(i),
-                  name: topGames[i].name,
-                  count: topGames[i].count,
-                  seconds: topGames[i].seconds,
-                  showDivider: i < topGames.length - 1,
+                  name: g.topGamesByCount[i].name,
+                  count: g.topGamesByCount[i].count,
+                  seconds: g.topGamesByCount[i].seconds,
+                  showDivider: i < g.topGamesByCount.length - 1,
                 ),
             ],
           ),
@@ -232,116 +200,77 @@ class _StatisticsContent extends StatelessWidget {
             children: [
               _RecordRow(
                 label: s.statsLongest,
-                value: '${longest.gameName}  •  ${longest.durationFormatted}',
+                value: '${g.longestSession.gameName}  •  ${g.longestSession.durationFormatted}',
               ),
               const Divider(height: 1),
               _RecordRow(
                 label: s.statsShortest,
-                value: '${shortest.gameName}  •  ${shortest.durationFormatted}',
+                value: '${g.shortestSession.gameName}  •  ${g.shortestSession.durationFormatted}',
               ),
               const Divider(height: 1),
               _RecordRow(
                 label: s.statsAvgDuration,
-                value: _formatSeconds(avgSeconds),
+                value: _formatSeconds(g.avgSeconds),
               ),
             ],
           ),
         ),
         const SizedBox(height: 20),
-        if (hallOfFame.isNotEmpty) ...[
+        if (g.hallOfFame.isNotEmpty) ...[
           _SectionHeader(s.statsHallOfFame),
           Card(
             child: Column(
               children: [
-                for (int i = 0; i < hallOfFame.length; i++)
+                for (int i = 0; i < g.hallOfFame.length; i++)
                   _PlayerRow(
                     medal: _medal(i),
-                    name: hallOfFame[i].key,
-                    wins: hallOfFame[i].value,
-                    showDivider: i < hallOfFame.length - 1,
+                    name: g.hallOfFame[i].name,
+                    wins: g.hallOfFame[i].wins,
+                    showDivider: i < g.hallOfFame.length - 1,
                   ),
               ],
             ),
           ),
           const SizedBox(height: 20),
         ],
-
-        // Best teams
-        ...() {
-          final teamStats =
-              <String, ({List<String> players, int sessions, int wins})>{};
-          for (final sess in sessions) {
-            final teamPlayers = <String, List<String>>{};
-            for (final p in sess.players) {
-              if (p.teamName != null && p.teamName!.isNotEmpty) {
-                teamPlayers.putIfAbsent(p.teamName!, () => []).add(p.playerName);
-              }
-            }
-            if (teamPlayers.isEmpty) continue;
-            for (final entry in teamPlayers.entries) {
-              final sorted = [...entry.value]..sort();
-              final key = sorted.join(',');
-              final isWin = sess.players
-                  .where((p) => p.teamName == entry.key)
-                  .any((p) => p.rank == 1);
-              final prev = teamStats[key];
-              teamStats[key] = (
-                players: sorted,
-                sessions: (prev?.sessions ?? 0) + 1,
-                wins: (prev?.wins ?? 0) + (isWin ? 1 : 0),
-              );
-            }
-          }
-          if (teamStats.isEmpty) return <Widget>[];
-          final top = teamStats.values.toList()
-            ..sort((a, b) {
-              final cmp = b.wins.compareTo(a.wins);
-              return cmp != 0 ? cmp : b.sessions.compareTo(a.sessions);
-            });
-          final display = top.take(3).toList();
-          return [
-            _SectionHeader(s.statsBestTeams),
-            Card(
-              child: Column(
-                children: [
-                  for (int i = 0; i < display.length; i++) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      child: Row(
-                        children: [
-                          Text(_medal(i),
-                              style: const TextStyle(fontSize: 18)),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  display[i].players.join(' & '),
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  '${display[i].sessions} ${s.statsSessions.toLowerCase()} · ${display[i].wins} ${s.statsWins.toLowerCase()}',
-                                  style: const TextStyle(
-                                      fontSize: 12, color: Colors.grey),
-                                ),
-                              ],
-                            ),
+        if (g.bestTeams.isNotEmpty) ...[
+          _SectionHeader(s.statsBestTeams),
+          Card(
+            child: Column(
+              children: [
+                for (int i = 0; i < g.bestTeams.length; i++) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Text(_medal(i), style: const TextStyle(fontSize: 18)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                g.bestTeams[i].players.join(' & '),
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '${g.bestTeams[i].sessions} ${s.statsSessions.toLowerCase()} · ${g.bestTeams[i].wins} ${s.statsWins.toLowerCase()}',
+                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    if (i < display.length - 1) const Divider(height: 1),
-                  ],
+                  ),
+                  if (i < g.bestTeams.length - 1) const Divider(height: 1),
                 ],
-              ),
+              ],
             ),
-            const SizedBox(height: 20),
-          ];
-        }(),
+          ),
+          const SizedBox(height: 20),
+        ],
       ];
     }
 
@@ -486,43 +415,6 @@ class _LegendItem extends StatelessWidget {
 
 // ─── Games Tab ────────────────────────────────────────────────────────────────
 
-class _GameStatsData {
-  final String name;
-  int sessionCount = 0;
-  int totalSeconds = 0;
-  int totalPlayers = 0;
-  DateTime? lastPlayed;
-  final List<int> scores = [];
-  final Map<String, int> playerWins = {};
-  final Map<String, int> playerBestScore = {};
-  int? longestSeconds;
-  int? shortestSeconds;
-  int sessionsWithExpansions = 0;
-  final Map<String, int> expansionUseCounts = {};
-
-  _GameStatsData({required this.name});
-
-  int get avgSeconds => sessionCount > 0 ? totalSeconds ~/ sessionCount : 0;
-  double get avgPlayers => sessionCount > 0 ? totalPlayers / sessionCount : 0;
-  int? get highestScore => scores.isEmpty ? null : scores.reduce((a, b) => a > b ? a : b);
-  int? get lowestScore => scores.isEmpty ? null : scores.reduce((a, b) => a < b ? a : b);
-  double? get avgScore => scores.isEmpty ? null : scores.reduce((a, b) => a + b) / scores.length;
-
-  String? get bestPlayer {
-    if (playerWins.isEmpty) return null;
-    final maxWins = playerWins.values.reduce((a, b) => a > b ? a : b);
-    final tied = playerWins.entries.where((e) => e.value == maxWins).map((e) => e.key).toList();
-    if (tied.length == 1) return tied.first;
-    // Tiebreak: highest score in this game, then alphabetical
-    return tied.reduce((a, b) {
-      final scoreA = playerBestScore[a] ?? -1;
-      final scoreB = playerBestScore[b] ?? -1;
-      if (scoreA != scoreB) return scoreA > scoreB ? a : b;
-      return a.compareTo(b) <= 0 ? a : b;
-    });
-  }
-}
-
 class _GamesStatsContent extends StatelessWidget {
   final List<GameSession> sessions;
   final List<BoardGame> allGames;
@@ -532,40 +424,7 @@ class _GamesStatsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
-    final statsMap = <String, _GameStatsData>{};
-    for (final sess in sessions) {
-      final data = statsMap.putIfAbsent(sess.gameId, () => _GameStatsData(name: sess.gameName));
-      data.sessionCount++;
-      data.totalSeconds += sess.durationSeconds;
-      data.totalPlayers += sess.players.length;
-      if (data.lastPlayed == null || sess.startTime.isAfter(data.lastPlayed!)) {
-        data.lastPlayed = sess.startTime;
-      }
-      if (data.longestSeconds == null || sess.durationSeconds > data.longestSeconds!) {
-        data.longestSeconds = sess.durationSeconds;
-      }
-      if (data.shortestSeconds == null || sess.durationSeconds < data.shortestSeconds!) {
-        data.shortestSeconds = sess.durationSeconds;
-      }
-      for (final p in sess.players) {
-        if (p.score != null) {
-          data.scores.add(p.score!);
-          final prev = data.playerBestScore[p.playerName];
-          if (prev == null || p.score! > prev) {
-            data.playerBestScore[p.playerName] = p.score!;
-          }
-        }
-        if (p.rank == 1) {
-          data.playerWins[p.playerName] = (data.playerWins[p.playerName] ?? 0) + 1;
-        }
-      }
-      if (sess.expansionIds.isNotEmpty) data.sessionsWithExpansions++;
-      for (final expId in sess.expansionIds) {
-        data.expansionUseCounts[expId] =
-            (data.expansionUseCounts[expId] ?? 0) + 1;
-      }
-    }
-
+    final statsMap = StatsService.computeGameStats(sessions);
     final playedGames = statsMap.values.toList()
       ..sort((a, b) => b.sessionCount.compareTo(a.sessionCount));
 
@@ -649,7 +508,7 @@ class _GamesStatsContent extends StatelessWidget {
 }
 
 class _GameDetailScreen extends StatelessWidget {
-  final _GameStatsData stats;
+  final GameStatsData stats;
   final List<BoardGame> allGames;
 
   const _GameDetailScreen({required this.stats, required this.allGames});
@@ -768,24 +627,9 @@ class _PlayersStatsContentState extends State<_PlayersStatsContent> {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
-    final playerMap = <String, ({int sessions, int wins})>{};
-    for (final sess in widget.sessions) {
-      for (final p in sess.players) {
-        final prev = playerMap[p.playerName];
-        playerMap[p.playerName] = (
-          sessions: (prev?.sessions ?? 0) + 1,
-          wins: (prev?.wins ?? 0) + (p.rank == 1 ? 1 : 0),
-        );
-      }
-    }
+    final playerList = StatsService.computePlayerList(widget.sessions);
 
-    final players = playerMap.entries.toList()
-      ..sort((a, b) {
-        final cmp = b.value.wins.compareTo(a.value.wins);
-        return cmp != 0 ? cmp : b.value.sessions.compareTo(a.value.sessions);
-      });
-
-    if (players.isEmpty) {
+    if (playerList.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -800,7 +644,7 @@ class _PlayersStatsContentState extends State<_PlayersStatsContent> {
       );
     }
 
-    final playerNames = players.map((e) => e.key).toList();
+    final playerNames = playerList.map((e) => e.name).toList();
     // Reset selections if player no longer in list
     if (_playerA != null && !playerNames.contains(_playerA)) _playerA = null;
     if (_playerB != null && !playerNames.contains(_playerB)) _playerB = null;
@@ -811,7 +655,7 @@ class _PlayersStatsContentState extends State<_PlayersStatsContent> {
       padding: const EdgeInsets.all(16),
       children: [
         // ── Head-to-head picker ──
-        if (players.length >= 2) ...[
+        if (playerList.length >= 2) ...[
           _SectionHeader(s.statsHeadToHead),
           Card(
             child: Padding(
@@ -894,25 +738,25 @@ class _PlayersStatsContentState extends State<_PlayersStatsContent> {
         ],
 
         // ── Player list ──
-        for (int i = 0; i < players.length; i++) ...[
+        for (int i = 0; i < playerList.length; i++) ...[
           Card(
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              title: Text(players[i].key, style: const TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(playerList[i].name, style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text(
-                '${players[i].value.sessions} session${players[i].value.sessions == 1 ? '' : 's'} · '
-                '${players[i].value.wins} win${players[i].value.wins == 1 ? '' : 's'}',
+                '${playerList[i].sessions} session${playerList[i].sessions == 1 ? '' : 's'} · '
+                '${playerList[i].wins} win${playerList[i].wins == 1 ? '' : 's'}',
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => _PlayerDetailScreen(
-                  playerName: players[i].key,
+                  playerName: playerList[i].name,
                   sessions: widget.sessions,
                 ),
               )),
             ),
           ),
-          if (i < players.length - 1) const SizedBox(height: 8),
+          if (i < playerList.length - 1) const SizedBox(height: 8),
         ],
       ],
     );
@@ -936,31 +780,11 @@ class _HeadToHeadScreen extends StatelessWidget {
     final s = context.watch<LanguageProvider>().strings;
     final colorScheme = Theme.of(context).colorScheme;
 
-    // ── Compute H2H data ──
-    int aWins = 0, bWins = 0, draws = 0;
-    final gameMap = <String, ({String name, int aWins, int bWins, int draws})>{};
-
-    for (final sess in sessions) {
-      final pa = sess.players.where((p) => p.playerName == playerA).firstOrNull;
-      final pb = sess.players.where((p) => p.playerName == playerB).firstOrNull;
-      if (pa == null || pb == null) continue;
-
-      final prev = gameMap[sess.gameId] ??
-          (name: sess.gameName, aWins: 0, bWins: 0, draws: 0);
-
-      if (pa.rank < pb.rank) {
-        aWins++;
-        gameMap[sess.gameId] = (name: prev.name, aWins: prev.aWins + 1, bWins: prev.bWins, draws: prev.draws);
-      } else if (pb.rank < pa.rank) {
-        bWins++;
-        gameMap[sess.gameId] = (name: prev.name, aWins: prev.aWins, bWins: prev.bWins + 1, draws: prev.draws);
-      } else {
-        draws++;
-        gameMap[sess.gameId] = (name: prev.name, aWins: prev.aWins, bWins: prev.bWins, draws: prev.draws + 1);
-      }
-    }
-
-    final totalTogether = aWins + bWins + draws;
+    final h2h = StatsService.computeH2H(playerA, playerB, sessions);
+    final aWins = h2h.aWins;
+    final bWins = h2h.bWins;
+    final draws = h2h.draws;
+    final totalTogether = h2h.total;
 
     if (totalTogether == 0) {
       return Scaffold(
@@ -985,9 +809,7 @@ class _HeadToHeadScreen extends StatelessWidget {
       );
     }
 
-    final games = gameMap.values.toList()
-      ..sort((a, b) =>
-          (b.aWins + b.bWins + b.draws).compareTo(a.aWins + a.bWins + a.draws));
+    final games = h2h.byGame;
 
     final aLeading = aWins > bWins;
     final bLeading = bWins > aWins;
@@ -1193,22 +1015,6 @@ class _H2HGameCard extends StatelessWidget {
 
 // ─── Player Detail Screen ─────────────────────────────────────────────────────
 
-class _PlayerGameData {
-  final String name;
-  int sessionCount = 0;
-  int wins = 0;
-  int secondPlaces = 0;
-  int thirdPlaces = 0;
-  final List<int> scores = [];
-
-  _PlayerGameData({required this.name});
-
-  double get winRate => sessionCount > 0 ? wins / sessionCount : 0;
-  int? get highestScore => scores.isEmpty ? null : scores.reduce((a, b) => a > b ? a : b);
-  double? get avgScore =>
-      scores.isEmpty ? null : scores.reduce((a, b) => a + b) / scores.length;
-}
-
 class _PlayerDetailScreen extends StatelessWidget {
   final String playerName;
   final List<GameSession> sessions;
@@ -1218,85 +1024,14 @@ class _PlayerDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
-    int wins = 0, secondPlaces = 0, thirdPlaces = 0, totalSeconds = 0;
-    final gameMap = <String, _PlayerGameData>{};
-
-    for (final sess in sessions) {
-      final match = sess.players.where((p) => p.playerName == playerName);
-      if (match.isEmpty) continue;
-      final p = match.first;
-
-      totalSeconds += sess.durationSeconds;
-      if (p.rank == 1) {
-        wins++;
-      } else if (p.rank == 2) {
-        secondPlaces++;
-      } else if (p.rank == 3) {
-        thirdPlaces++;
-      }
-
-      final gd = gameMap.putIfAbsent(sess.gameId, () => _PlayerGameData(name: sess.gameName));
-      gd.sessionCount++;
-      if (p.rank == 1) {
-        gd.wins++;
-      } else if (p.rank == 2) {
-        gd.secondPlaces++;
-      } else if (p.rank == 3) {
-        gd.thirdPlaces++;
-      }
-      if (p.score != null) { gd.scores.add(p.score!); }
-    }
-
-    final totalSessions = gameMap.values.fold(0, (sum, g) => sum + g.sessionCount);
-    final uniqueGames = gameMap.length;
-    final winRate = totalSessions > 0 ? wins / totalSessions : 0.0;
-
-    String? mostPlayed;
-    if (gameMap.isNotEmpty) {
-      mostPlayed = gameMap.values
-          .reduce((a, b) => a.sessionCount >= b.sessionCount ? a : b)
-          .name;
-    }
-
-    final games = gameMap.values.toList()
-      ..sort((a, b) => b.sessionCount.compareTo(a.sessionCount));
-
-    // ── Partner stats ──
-    final partnerStats = <String, ({int sessions, int wins})>{};
-    for (final sess in sessions) {
-      final myResult =
-          sess.players.where((p) => p.playerName == playerName).firstOrNull;
-      if (myResult == null ||
-          myResult.teamName == null ||
-          myResult.teamName!.isEmpty) continue;
-      final myTeam = myResult.teamName!;
-      final isWin = myResult.rank == 1;
-      for (final p in sess.players) {
-        if (p.playerName == playerName) continue;
-        if (p.teamName != myTeam) continue;
-        final prev = partnerStats[p.playerName];
-        partnerStats[p.playerName] = (
-          sessions: (prev?.sessions ?? 0) + 1,
-          wins: (prev?.wins ?? 0) + (isWin ? 1 : 0),
-        );
-      }
-    }
-    String? bestPartner;
-    double bestRate = -1;
-    String? worstPartner;
-    double worstRate = 2.0;
-    for (final entry in partnerStats.entries) {
-      if (entry.value.sessions < 2) continue;
-      final rate = entry.value.wins / entry.value.sessions;
-      if (rate > bestRate) {
-        bestRate = rate;
-        bestPartner = entry.key;
-      }
-      if (rate < worstRate) {
-        worstRate = rate;
-        worstPartner = entry.key;
-      }
-    }
+    final pd = StatsService.computePlayerDetail(playerName, sessions);
+    final totalSessions = pd.totalSessions;
+    final wins = pd.wins;
+    final secondPlaces = pd.secondPlaces;
+    final thirdPlaces = pd.thirdPlaces;
+    final uniqueGames = pd.uniqueGames;
+    final winRate = pd.winRate;
+    final games = pd.gameBreakdown;
 
     return Scaffold(
       appBar: AppBar(title: Text(playerName)),
@@ -1328,10 +1063,10 @@ class _PlayerDetailScreen extends StatelessWidget {
           Card(
             child: Column(
               children: [
-                _RecordRow(label: s.statsTotalTime, value: _formatSeconds(totalSeconds)),
-                if (mostPlayed != null) ...[
+                _RecordRow(label: s.statsTotalTime, value: _formatSeconds(pd.totalSeconds)),
+                if (pd.mostPlayedName != null) ...[
                   const Divider(height: 1),
-                  _RecordRow(label: s.statsMostPlayed, value: mostPlayed),
+                  _RecordRow(label: s.statsMostPlayed, value: pd.mostPlayedName!),
                 ],
               ],
             ),
@@ -1339,24 +1074,24 @@ class _PlayerDetailScreen extends StatelessWidget {
           const SizedBox(height: 24),
 
           // ── Section 2: Team Partners ──
-          if (bestPartner != null || worstPartner != null) ...[
+          if (pd.bestPartner != null || pd.worstPartner != null) ...[
             _SectionHeader(s.statsBestTeams),
             Card(
               child: Column(
                 children: [
-                  if (bestPartner != null) ...[
+                  if (pd.bestPartner != null) ...[
                     _RecordRow(
                       label: s.statsBestPartner,
                       value:
-                          '$bestPartner  •  ${(bestRate * 100).round()}% (${partnerStats[bestPartner]!.sessions} ${s.statsPartnerSessions.toLowerCase()})',
+                          '${pd.bestPartner}  •  ${(pd.bestPartnerWinRate * 100).round()}% (${pd.bestPartnerSessions} ${s.statsPartnerSessions.toLowerCase()})',
                     ),
                   ],
-                  if (bestPartner != null && worstPartner != null && bestPartner != worstPartner) ...[
+                  if (pd.bestPartner != null && pd.worstPartner != null && pd.bestPartner != pd.worstPartner) ...[
                     const Divider(height: 1),
                     _RecordRow(
                       label: s.statsWorstPartner,
                       value:
-                          '$worstPartner  •  ${(worstRate * 100).round()}% (${partnerStats[worstPartner]!.sessions} ${s.statsPartnerSessions.toLowerCase()})',
+                          '${pd.worstPartner}  •  ${(pd.worstPartnerWinRate * 100).round()}% (${pd.worstPartnerSessions} ${s.statsPartnerSessions.toLowerCase()})',
                     ),
                   ],
                 ],
@@ -1380,7 +1115,7 @@ class _PlayerDetailScreen extends StatelessWidget {
 }
 
 class _PlayerGameCard extends StatelessWidget {
-  final _PlayerGameData data;
+  final PlayerGameData data;
 
   const _PlayerGameCard({required this.data});
 
