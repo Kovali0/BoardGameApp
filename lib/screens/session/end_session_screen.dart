@@ -4,6 +4,7 @@ import '../../models/board_game.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../services/ranking_service.dart';
 import 'game_results_screen.dart';
 
 const _kTeamColors = [
@@ -150,74 +151,18 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
     }
   }
 
-  /// Base ranks: equal scores share the same rank. Unscored players get rank 0.
-  Map<String, int> _computeBaseRanks() {
-    final scored = _playerData.where((p) => p['score'] != null).toList()
-      ..sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
-
-    final result = <String, int>{};
-    for (final p in _playerData) {
-      if (p['score'] == null) result[p['name'] as String] = 0;
-    }
-
-    int rank = 1;
-    for (int i = 0; i < scored.length; i++) {
-      if (i > 0 && scored[i]['score'] != scored[i - 1]['score']) rank = i + 1;
-      result[scored[i]['name'] as String] = rank;
-    }
-    return result;
-  }
-
-  /// Tie groups: only groups with 2+ players. Uses _playerData order for stability.
-  Map<int, List<String>> _computeTieGroups(Map<String, int> baseRanks) {
-    final groups = <int, List<String>>{};
-    for (final p in _playerData) {
-      final name = p['name'] as String;
-      final rank = baseRanks[name];
-      if (rank == null || rank == 0) continue;
-      groups.putIfAbsent(rank, () => []).add(name);
-    }
-    return Map.fromEntries(groups.entries.where((e) => e.value.length > 1));
-  }
-
-  /// Final ranks after applying tiebreaker ordering.
-  Map<String, int> _computeFinalRanks() {
-    final base = _computeBaseRanks();
-    final tieGroups = _computeTieGroups(base);
-    final result = Map<String, int>.from(base);
-
-    for (final entry in tieGroups.entries) {
-      final baseRank = entry.key;
-      final order = _tieOrder[baseRank] ?? entry.value;
-      for (int i = 0; i < order.length; i++) {
-        result[order[i]] = baseRank + i;
-      }
-    }
-    return result;
-  }
+  Map<String, int?> get _playerScores => {
+        for (final p in _playerData)
+          p['name'] as String: p['score'] as int?,
+      };
 
   void _onScoreChanged() {
     _readScores();
-    final base = _computeBaseRanks();
-    final tieGroups = _computeTieGroups(base);
-
+    final base = RankingService.computeBaseRanks(_playerScores);
     setState(() {
-      // Sync _tieOrder: add new groups, update membership, remove resolved ones.
-      for (final entry in tieGroups.entries) {
-        final rank = entry.key;
-        final newPlayers = entry.value.toSet();
-        if (_tieOrder.containsKey(rank)) {
-          // Preserve existing order but sync membership.
-          final updated = _tieOrder[rank]!.where(newPlayers.contains).toList();
-          for (final p in newPlayers) {
-            if (!updated.contains(p)) updated.add(p);
-          }
-          _tieOrder[rank] = updated;
-        } else {
-          _tieOrder[rank] = List.from(entry.value);
-        }
-      }
-      _tieOrder.removeWhere((rank, _) => !tieGroups.containsKey(rank));
+      _tieOrder
+        ..clear()
+        ..addAll(RankingService.syncTieOrder(base, _tieOrder));
     });
   }
 
@@ -256,7 +201,8 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
     } else {
       // Individual mode
       _readScores();
-      final finalRanks = _computeFinalRanks();
+      final base = RankingService.computeBaseRanks(_playerScores);
+      final finalRanks = RankingService.computeFinalRanks(base, _tieOrder);
       saveData = _playerData
           .map((p) => {
                 'name': p['name'],
@@ -410,9 +356,15 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
     final s = context.watch<LanguageProvider>().strings;
     final theme = Theme.of(context);
     final isTeamMode = widget.teamAssignments.isNotEmpty;
-    final finalRanks = isTeamMode ? <String, int>{} : _computeFinalRanks();
-    final base = isTeamMode ? <String, int>{} : _computeBaseRanks();
-    final tieGroups = isTeamMode ? <int, List<String>>{} : _computeTieGroups(base);
+    final base = isTeamMode
+        ? <String, int>{}
+        : RankingService.computeBaseRanks(_playerScores);
+    final tieGroups = isTeamMode
+        ? <int, List<String>>{}
+        : RankingService.computeTieGroups(base);
+    final finalRanks = isTeamMode
+        ? <String, int>{}
+        : RankingService.computeFinalRanks(base, _tieOrder);
     final hasTies = tieGroups.isNotEmpty;
     final teamRanks = isTeamMode ? _computeTeamRanks() : <String, int>{};
 

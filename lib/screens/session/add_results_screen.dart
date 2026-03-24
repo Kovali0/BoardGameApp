@@ -7,6 +7,7 @@ import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/ranking_service.dart';
 import 'game_results_screen.dart';
 
 class AddResultsScreen extends StatefulWidget {
@@ -31,8 +32,8 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
   final List<TextEditingController> _nameControllers = [];
   final List<TextEditingController> _scoreControllers = [];
 
-  // key = base rank, value = ordered list of player indices in that tie group
-  final Map<int, List<int>> _tieOrder = {};
+  // key = base rank, value = ordered list of player indices (as strings) in that tie group
+  final Map<int, List<String>> _tieOrder = {};
   final _tiebreakerController = TextEditingController();
   final _notesController = TextEditingController();
 
@@ -89,8 +90,9 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     setState(() {
       _nameControllers.add(TextEditingController());
       _scoreControllers.add(TextEditingController());
-      _tieOrder.clear(); // indices may shift, rebuild from scratch
-      _syncTieOrder();
+      _tieOrder
+        ..clear()
+        ..addAll(RankingService.syncTieOrder(_computeBaseRanks(), {}));
     });
   }
 
@@ -101,90 +103,38 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
       _scoreControllers[index].dispose();
       _nameControllers.removeAt(index);
       _scoreControllers.removeAt(index);
-      _tieOrder.clear(); // indices shifted, rebuild from scratch
-      _syncTieOrder();
+      _tieOrder
+        ..clear()
+        ..addAll(RankingService.syncTieOrder(_computeBaseRanks(), {}));
     });
   }
 
-  /// Base ranks: equal scores share rank, unscored players get 0.
-  List<int> _computeBaseRanks() {
-    final n = _nameControllers.length;
-    final scores = List<int?>.generate(n, (i) {
-      final text = _scoreControllers[i].text.trim();
-      return text.isEmpty ? null : int.tryParse(text);
+  /// Scores as a string-keyed map (index → score) for RankingService.
+  Map<String, int?> get _scoresMap => {
+        for (int i = 0; i < _nameControllers.length; i++)
+          '$i': int.tryParse(_scoreControllers[i].text.trim()),
+      };
+
+  /// Base ranks as a list indexed by player position.
+  Map<String, int> _computeBaseRanks() =>
+      RankingService.computeBaseRanks(_scoresMap);
+
+  /// Tie groups: baseRank → [player indices as strings] for groups with 2+ players.
+  Map<int, List<String>> _computeTieGroups(Map<String, int> baseRanks) =>
+      RankingService.computeTieGroups(baseRanks);
+
+  /// Final ranks as a list indexed by player position.
+  Map<String, int> _computeFinalRanks() =>
+      RankingService.computeFinalRanks(_computeBaseRanks(), _tieOrder);
+
+  void _onScoreChanged() {
+    final base = _computeBaseRanks();
+    setState(() {
+      _tieOrder
+        ..clear()
+        ..addAll(RankingService.syncTieOrder(base, _tieOrder));
     });
-
-    final indices = List.generate(n, (i) => i)
-      ..sort((a, b) {
-        final sa = scores[a], sb = scores[b];
-        if (sa == null && sb == null) return 0;
-        if (sa == null) return 1;
-        if (sb == null) return -1;
-        return sb.compareTo(sa);
-      });
-
-    final result = List.filled(n, 0);
-    int rank = 1;
-    for (int i = 0; i < indices.length; i++) {
-      final idx = indices[i];
-      if (scores[idx] == null) continue;
-      if (i > 0) {
-        final prevIdx = indices[i - 1];
-        if (scores[prevIdx] != null && scores[idx] != scores[prevIdx]) rank = i + 1;
-      }
-      result[idx] = rank;
-    }
-    return result;
   }
-
-  /// Tie groups: baseRank → [player indices] for groups with 2+ players.
-  Map<int, List<int>> _computeTieGroups(List<int> baseRanks) {
-    final groups = <int, List<int>>{};
-    for (int i = 0; i < baseRanks.length; i++) {
-      final r = baseRanks[i];
-      if (r == 0) continue;
-      groups.putIfAbsent(r, () => []).add(i);
-    }
-    return Map.fromEntries(groups.entries.where((e) => e.value.length > 1));
-  }
-
-  /// Final ranks after applying tiebreaker ordering.
-  List<int> _computeFinalRanks() {
-    final base = _computeBaseRanks();
-    final groups = _computeTieGroups(base);
-    final result = List<int>.from(base);
-
-    for (final entry in groups.entries) {
-      final baseRank = entry.key;
-      final order = _tieOrder[baseRank] ?? entry.value;
-      for (int i = 0; i < order.length; i++) {
-        result[order[i]] = baseRank + i;
-      }
-    }
-    return result;
-  }
-
-  void _syncTieOrder() {
-    final base = _computeBaseRanks();
-    final groups = _computeTieGroups(base);
-
-    _tieOrder.removeWhere((rank, _) => !groups.containsKey(rank));
-    for (final entry in groups.entries) {
-      final rank = entry.key;
-      final newIndices = entry.value.toSet();
-      if (_tieOrder.containsKey(rank)) {
-        final updated = _tieOrder[rank]!.where(newIndices.contains).toList();
-        for (final idx in newIndices) {
-          if (!updated.contains(idx)) updated.add(idx);
-        }
-        _tieOrder[rank] = updated;
-      } else {
-        _tieOrder[rank] = List.from(entry.value);
-      }
-    }
-  }
-
-  void _onScoreChanged() => setState(() => _syncTieOrder());
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -230,10 +180,11 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
       final name = _nameControllers[i].text.trim();
       if (name.isEmpty) continue;
       final scoreText = _scoreControllers[i].text.trim();
+      final rank = finalRanks['$i'] ?? 0;
       players.add({
         'name': name,
         'score': scoreText.isEmpty ? null : int.tryParse(scoreText),
-        'rank': finalRanks[i] == 0 ? 1 : finalRanks[i],
+        'rank': rank == 0 ? 1 : rank,
         'startedGame': false,
       });
     }
@@ -291,9 +242,9 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     final usedNames = _nameControllers.map((c) => c.text.trim()).toSet();
     final availableQuick = defaultPlayers.where((p) => !usedNames.contains(p)).toList();
     final theme = Theme.of(context);
-    final finalRanks = _computeFinalRanks();
     final base = _computeBaseRanks();
     final tieGroups = _computeTieGroups(base);
+    final finalRanks = _computeFinalRanks();
     final hasTies = tieGroups.isNotEmpty;
 
     return Scaffold(
@@ -514,8 +465,8 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
 
           // Player rows
           ...List.generate(_nameControllers.length, (i) {
-            final rank = finalRanks[i];
-            final inTieGroup = tieGroups.values.any((g) => g.contains(i));
+            final rank = finalRanks['$i'] ?? 0;
+            final inTieGroup = tieGroups.values.any((g) => g.contains('$i'));
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: Padding(
@@ -630,7 +581,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                     ),
                   ),
                   ...List.generate(ordered.length, (i) {
-                    final playerIdx = ordered[i];
+                    final playerIdx = int.parse(ordered[i]);
                     final name = _nameControllers[playerIdx].text.trim();
                     final displayName =
                         name.isEmpty ? s.resultsPlayerHint(playerIdx + 1) : name;
@@ -665,7 +616,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                               onPressed: i == 0
                                   ? null
                                   : () => setState(() {
-                                        final list = List<int>.from(ordered);
+                                        final list = List<String>.from(ordered);
                                         final item = list.removeAt(i);
                                         list.insert(i - 1, item);
                                         _tieOrder[baseRank] = list;
@@ -680,7 +631,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                               onPressed: i == ordered.length - 1
                                   ? null
                                   : () => setState(() {
-                                        final list = List<int>.from(ordered);
+                                        final list = List<String>.from(ordered);
                                         final item = list.removeAt(i);
                                         list.insert(i + 1, item);
                                         _tieOrder[baseRank] = list;
