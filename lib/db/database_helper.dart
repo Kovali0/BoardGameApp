@@ -196,37 +196,50 @@ class DatabaseHelper {
 
   Future<void> insertSession(GameSession session) async {
     final db = await database;
-    await db.insert('sessions', session.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
-    for (final player in session.players) {
-      await db.insert('player_results', player.toMap(),
+    await db.transaction((txn) async {
+      await txn.insert('sessions', session.toMap(),
           conflictAlgorithm: ConflictAlgorithm.replace);
-    }
+      for (final player in session.players) {
+        await txn.insert('player_results', player.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
   }
 
   Future<List<GameSession>> getSessions() async {
     final db = await database;
     final sessionMaps =
         await db.query('sessions', orderBy: 'start_time DESC');
-    final List<GameSession> sessions = [];
-    for (final map in sessionMaps) {
-      final playerMaps = await db.query(
-        'player_results',
-        where: 'session_id = ?',
-        whereArgs: [map['id']],
-        orderBy: 'rank ASC',
-      );
-      sessions.add(GameSession.fromMap(
-          map, playerMaps.map(PlayerResult.fromMap).toList()));
+    if (sessionMaps.isEmpty) return [];
+
+    final sessionIds = sessionMaps.map((m) => m['id'] as String).toList();
+    final placeholders = List.filled(sessionIds.length, '?').join(',');
+    final playerMaps = await db.query(
+      'player_results',
+      where: 'session_id IN ($placeholders)',
+      whereArgs: sessionIds,
+      orderBy: 'rank ASC',
+    );
+
+    final playersBySession = <String, List<PlayerResult>>{};
+    for (final p in playerMaps) {
+      final sid = p['session_id'] as String;
+      playersBySession.putIfAbsent(sid, () => []).add(PlayerResult.fromMap(p));
     }
-    return sessions;
+
+    return sessionMaps.map((map) {
+      final id = map['id'] as String;
+      return GameSession.fromMap(map, playersBySession[id] ?? []);
+    }).toList();
   }
 
   Future<void> deleteSession(String id) async {
     final db = await database;
-    await db.delete('player_results',
-        where: 'session_id = ?', whereArgs: [id]);
-    await db.delete('sessions', where: 'id = ?', whereArgs: [id]);
+    await db.transaction((txn) async {
+      await txn.delete('player_results',
+          where: 'session_id = ?', whereArgs: [id]);
+      await txn.delete('sessions', where: 'id = ?', whereArgs: [id]);
+    });
   }
 
   // --- Wishlist ---
