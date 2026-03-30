@@ -695,7 +695,7 @@ class EnStrings extends AppStrings {
   @override String get settingsTimerFeedbackSub => 'Vibration on pause and end game';
   @override String get settingsQuickAdd => 'Quick add:';
   @override String get settingsAbout => 'ABOUT';
-  @override String get settingsVersion => 'Version 1.0.0';
+  @override String get settingsVersion => 'Version';
   @override String get settingsBggCredit => 'Board game data powered by BoardGameGeek';
   @override String get settingsBuiltWith => 'Built with Flutter ❤️';
   @override String get settingsCurrency => 'Currency';
@@ -1048,7 +1048,7 @@ class PlStrings extends AppStrings {
   @override String get settingsTimerFeedbackSub => 'Wibracje przy pauzie i końcu gry';
   @override String get settingsQuickAdd => 'Szybkie dodanie:';
   @override String get settingsAbout => 'O APLIKACJI';
-  @override String get settingsVersion => 'Wersja 1.0.0';
+  @override String get settingsVersion => 'Wersja';
   @override String get settingsBggCredit => 'Dane gier dostarczone przez BoardGameGeek';
   @override String get settingsBuiltWith => 'Stworzone z Flutter ❤️';
   @override String get settingsCurrency => 'Waluta';

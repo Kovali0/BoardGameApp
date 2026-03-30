@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -288,9 +289,18 @@ class SettingsScreen extends StatelessWidget {
                                 style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18)),
-                            Text(s.settingsVersion,
-                                style: const TextStyle(
-                                    color: Colors.grey, fontSize: 13)),
+                            FutureBuilder<PackageInfo>(
+                              future: PackageInfo.fromPlatform(),
+                              builder: (context, snapshot) {
+                                final version =
+                                    snapshot.data?.version ?? '—';
+                                return Text(
+                                  '${s.settingsVersion} $version',
+                                  style: const TextStyle(
+                                      color: Colors.grey, fontSize: 13),
+                                );
+                              },
+                            ),
                           ],
                         ),
                       ],
