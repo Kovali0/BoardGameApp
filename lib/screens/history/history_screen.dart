@@ -24,7 +24,9 @@ List<int> _months(List<GameSession> s, int year) =>
 
 List<GameSession> _applyFilter(
     List<GameSession> all, int? year, int? month,
-    {bool withExpansionsOnly = false}) {
+    {bool withExpansionsOnly = false,
+    String? gameId,
+    String? playerName}) {
   var list = all;
   if (year != null) {
     list = list.where((s) => s.startTime.year == year).toList();
@@ -34,6 +36,15 @@ List<GameSession> _applyFilter(
   }
   if (withExpansionsOnly) {
     list = list.where((s) => s.expansionIds.isNotEmpty).toList();
+  }
+  if (gameId != null) {
+    list = list.where((s) => s.gameId == gameId).toList();
+  }
+  if (playerName != null) {
+    list = list
+        .where((s) => s.players.any(
+            (p) => p.playerName.toLowerCase() == playerName.toLowerCase()))
+        .toList();
   }
   return list;
 }
@@ -66,6 +77,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   int? _selectedYear;
   int? _selectedMonth;
   bool _withExpansionsOnly = false;
+  String? _selectedGameId;
+  String? _selectedPlayerName;
   _HistorySortOrder _sortOrder = _HistorySortOrder.newest;
 
   void _showFilterSheet(BuildContext context, List<GameSession> allSessions) {
@@ -80,10 +93,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
         initialYear: _selectedYear,
         initialMonth: _selectedMonth,
         initialWithExpansions: _withExpansionsOnly,
-        onApply: (year, month, withExpansions) => setState(() {
+        initialGameId: _selectedGameId,
+        initialPlayerName: _selectedPlayerName,
+        onApply: (year, month, withExpansions, gameId, playerName) =>
+            setState(() {
           _selectedYear = year;
           _selectedMonth = month;
           _withExpansionsOnly = withExpansions;
+          _selectedGameId = gameId;
+          _selectedPlayerName = playerName;
         }),
       ),
     );
@@ -96,10 +114,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final allSessions = provider.sessions;
     final filteredSessions = _applySort(
       _applyFilter(allSessions, _selectedYear, _selectedMonth,
-          withExpansionsOnly: _withExpansionsOnly),
+          withExpansionsOnly: _withExpansionsOnly,
+          gameId: _selectedGameId,
+          playerName: _selectedPlayerName),
       _sortOrder,
     );
-    final filterActive = _selectedYear != null || _withExpansionsOnly;
+    final filterActive = _selectedYear != null ||
+        _withExpansionsOnly ||
+        _selectedGameId != null ||
+        _selectedPlayerName != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -188,13 +211,22 @@ class _FilterSheet extends StatefulWidget {
   final int? initialYear;
   final int? initialMonth;
   final bool initialWithExpansions;
-  final void Function(int? year, int? month, bool withExpansions) onApply;
+  final String? initialGameId;
+  final String? initialPlayerName;
+  final void Function(
+      int? year,
+      int? month,
+      bool withExpansions,
+      String? gameId,
+      String? playerName) onApply;
 
   const _FilterSheet({
     required this.allSessions,
     required this.initialYear,
     required this.initialMonth,
     required this.initialWithExpansions,
+    required this.initialGameId,
+    required this.initialPlayerName,
     required this.onApply,
   });
 
@@ -206,6 +238,8 @@ class _FilterSheetState extends State<_FilterSheet> {
   int? _year;
   int? _month;
   bool _withExpansions = false;
+  String? _gameId;
+  String? _playerName;
 
   @override
   void initState() {
@@ -213,6 +247,8 @@ class _FilterSheetState extends State<_FilterSheet> {
     _year = widget.initialYear;
     _month = widget.initialMonth;
     _withExpansions = widget.initialWithExpansions;
+    _gameId = widget.initialGameId;
+    _playerName = widget.initialPlayerName;
   }
 
   @override
@@ -221,69 +257,178 @@ class _FilterSheetState extends State<_FilterSheet> {
     final years = _years(widget.allSessions);
     final months = _year == null ? <int>[] : _months(widget.allSessions, _year!);
 
+    // Unique games: preserve insertion order, deduplicate by gameId
+    final seenIds = <String>{};
+    final games = <({String id, String name})>[];
+    for (final session in widget.allSessions) {
+      if (seenIds.add(session.gameId)) {
+        games.add((id: session.gameId, name: session.gameName));
+      }
+    }
+    games.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+    // Unique player names across all sessions
+    final players = widget.allSessions
+        .expand((s) => s.players.map((p) => p.playerName))
+        .toSet()
+        .toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 20, 16, 16 + MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+          16, 20, 16,
+          16 + MediaQuery.of(context).viewInsets.bottom +
+              MediaQuery.of(context).padding.bottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(s.historyFilterTitle,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          Text(s.filterYear, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              FilterChip(
-                label: Text(s.filterAll),
-                selected: _year == null,
-                onSelected: (_) => setState(() { _year = null; _month = null; }),
-              ),
-              for (final y in years)
-                FilterChip(
-                  label: Text('$y'),
-                  selected: _year == y,
-                  onSelected: (_) => setState(() { _year = y; _month = null; }),
-                ),
-            ],
-          ),
-          if (_year != null) ...[
-            const SizedBox(height: 12),
-            Text(s.filterMonth, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                FilterChip(
-                  label: Text(s.filterAll),
-                  selected: _month == null,
-                  onSelected: (_) => setState(() => _month = null),
-                ),
-                for (final m in months)
-                  FilterChip(
-                    label: Text(_kMonths[m]),
-                    selected: _month == m,
-                    onSelected: (_) => setState(() => _month = m),
-                  ),
-              ],
-            ),
-          ],
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          FilterChip(
-            label: Text(s.historyFilterWithExpansions),
-            avatar: const Icon(Icons.extension, size: 14),
-            selected: _withExpansions,
-            onSelected: (v) => setState(() => _withExpansions = v),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.55),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Year ──
+                  Text(s.filterYear,
+                      style:
+                          const TextStyle(color: Colors.grey, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      FilterChip(
+                        label: Text(s.filterAll),
+                        selected: _year == null,
+                        onSelected: (_) =>
+                            setState(() {
+                              _year = null;
+                              _month = null;
+                            }),
+                      ),
+                      for (final y in years)
+                        FilterChip(
+                          label: Text('$y'),
+                          selected: _year == y,
+                          onSelected: (_) =>
+                              setState(() {
+                                _year = y;
+                                _month = null;
+                              }),
+                        ),
+                    ],
+                  ),
+                  if (_year != null) ...[
+                    const SizedBox(height: 12),
+                    Text(s.filterMonth,
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        FilterChip(
+                          label: Text(s.filterAll),
+                          selected: _month == null,
+                          onSelected: (_) =>
+                              setState(() => _month = null),
+                        ),
+                        for (final m in months)
+                          FilterChip(
+                            label: Text(_kMonths[m]),
+                            selected: _month == m,
+                            onSelected: (_) =>
+                                setState(() => _month = m),
+                          ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+
+                  // ── Game ──
+                  if (games.isNotEmpty) ...[
+                    Text(s.filterGame,
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        FilterChip(
+                          label: Text(s.filterAll),
+                          selected: _gameId == null,
+                          onSelected: (_) =>
+                              setState(() => _gameId = null),
+                        ),
+                        for (final g in games)
+                          FilterChip(
+                            label: Text(g.name),
+                            selected: _gameId == g.id,
+                            onSelected: (_) =>
+                                setState(() => _gameId =
+                                    _gameId == g.id ? null : g.id),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // ── Player ──
+                  if (players.isNotEmpty) ...[
+                    Text(s.filterPlayer,
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        FilterChip(
+                          label: Text(s.filterAll),
+                          selected: _playerName == null,
+                          onSelected: (_) =>
+                              setState(() => _playerName = null),
+                        ),
+                        for (final p in players)
+                          FilterChip(
+                            label: Text(p),
+                            selected: _playerName == p,
+                            onSelected: (_) =>
+                                setState(() => _playerName =
+                                    _playerName == p ? null : p),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // ── Expansions ──
+                  FilterChip(
+                    label: Text(s.historyFilterWithExpansions),
+                    avatar: const Icon(Icons.extension, size: 14),
+                    selected: _withExpansions,
+                    onSelected: (v) =>
+                        setState(() => _withExpansions = v),
+                  ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
               onPressed: () {
-                widget.onApply(_year, _month, _withExpansions);
+                widget.onApply(
+                    _year, _month, _withExpansions, _gameId, _playerName);
                 Navigator.pop(context);
               },
               child: Text(s.apply),

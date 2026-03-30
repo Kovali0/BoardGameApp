@@ -19,6 +19,8 @@ abstract class AppStrings {
   String get filterAll;
   String get filterYear;
   String get filterMonth;
+  String get filterGame;
+  String get filterPlayer;
 
   // Catalog
   String get catalogTitle;
@@ -364,6 +366,8 @@ class EnStrings extends AppStrings {
   @override String get filterAll => 'All';
   @override String get filterYear => 'Year';
   @override String get filterMonth => 'Month';
+  @override String get filterGame => 'Game';
+  @override String get filterPlayer => 'Player';
 
   // Catalog
   @override String get catalogTitle => 'My Games Collection';
@@ -719,6 +723,8 @@ class PlStrings extends AppStrings {
   @override String get filterAll => 'Wszystkie';
   @override String get filterYear => 'Rok';
   @override String get filterMonth => 'Miesiąc';
+  @override String get filterGame => 'Gra';
+  @override String get filterPlayer => 'Gracz';
 
   // Catalog
   @override String get catalogTitle => 'Moja kolekcja gier';
