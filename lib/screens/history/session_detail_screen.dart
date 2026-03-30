@@ -47,15 +47,37 @@ class SessionDetailScreen extends StatelessWidget {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+              child: Column(
                 children: [
-                  _InfoItem(icon: Icons.calendar_today, label: dateStr),
-                  _InfoItem(
-                      icon: Icons.timer, label: session.durationFormatted),
-                  _InfoItem(
-                      icon: Icons.group,
-                      label: '${session.players.length}p'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _InfoItem(icon: Icons.calendar_today, label: dateStr),
+                      _InfoItem(
+                          icon: Icons.timer, label: session.durationFormatted),
+                      _InfoItem(
+                          icon: Icons.group,
+                          label: '${session.players.length}p'),
+                    ],
+                  ),
+                  if (session.location != null && session.location!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.place_outlined,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        const SizedBox(width: 4),
+                        Text(
+                          session.location!,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -139,6 +139,7 @@ abstract class AppStrings {
   String get resultsTiebreakerLabel;
   String get resultsTiebreakerHint;
   String get resultsNotesLabel;
+  String get sessionLocationLabel;
   String get resultsSaveButton;
   String get resultsAddPlayer;
   String get resultsDate;
@@ -483,6 +484,7 @@ class EnStrings extends AppStrings {
   @override String get resultsTiebreakerLabel => 'Tiebreaker reason (optional)';
   @override String get resultsTiebreakerHint => 'e.g. "A and B tied — B won by card count"';
   @override String get resultsNotesLabel => 'Notes (optional)';
+  @override String get sessionLocationLabel => 'Location (optional)';
   @override String get resultsSaveButton => 'Save Session';
   @override String get resultsAddPlayer => 'Add';
   @override String get resultsDate => 'Date';
@@ -837,6 +839,7 @@ class PlStrings extends AppStrings {
   @override String get resultsTiebreakerLabel => 'Powód rozstrzygnięcia (opcjonalnie)';
   @override String get resultsTiebreakerHint => 'np. "A i B zremisowali — B wygrało liczbą kart"';
   @override String get resultsNotesLabel => 'Notatki (opcjonalnie)';
+  @override String get sessionLocationLabel => 'Lokalizacja (opcjonalnie)';
   @override String get resultsSaveButton => 'Zapisz sesję';
   @override String get resultsAddPlayer => 'Dodaj';
   @override String get resultsDate => 'Data';

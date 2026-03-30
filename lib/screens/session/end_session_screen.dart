@@ -46,6 +46,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
   late List<Map<String, dynamic>> _playerData;
   final _notesController = TextEditingController();
   final _tiebreakerController = TextEditingController();
+  final _locationController = TextEditingController();
 
   // For each base rank that has a tie, stores the user-ordered list of player names.
   final Map<int, List<String>> _tieOrder = {};
@@ -89,6 +90,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
   void dispose() {
     _notesController.dispose();
     _tiebreakerController.dispose();
+    _locationController.dispose();
     for (final p in _playerData) {
       (p['scoreController'] as TextEditingController).dispose();
     }
@@ -220,6 +222,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
           .toList();
     }
 
+    final location = _locationController.text.trim();
     await context.read<SessionProvider>().saveSession(
           gameId: widget.game.id,
           gameName: widget.game.name,
@@ -230,6 +233,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
           notes: combinedNotes,
           isFromCollection: widget.isFromCollection,
           expansionIds: widget.expansionIds,
+          location: location.isEmpty ? null : location,
         );
 
     if (mounted) {
@@ -591,6 +595,16 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
               prefixIcon: Icon(Icons.note),
             ),
             maxLines: 2,
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _locationController,
+            decoration: InputDecoration(
+              labelText: s.sessionLocationLabel,
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.place_outlined),
+            ),
+            textCapitalization: TextCapitalization.words,
           ),
           const SizedBox(height: 24),
           FilledButton.icon(

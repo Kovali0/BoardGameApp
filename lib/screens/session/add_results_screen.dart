@@ -36,6 +36,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
   final Map<int, List<String>> _tieOrder = {};
   final _tiebreakerController = TextEditingController();
   final _notesController = TextEditingController();
+  final _locationController = TextEditingController();
 
   @override
   void initState() {
@@ -65,6 +66,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     _minutesController.dispose();
     _tiebreakerController.dispose();
     _notesController.dispose();
+    _locationController.dispose();
     for (final c in _nameControllers) c.dispose();
     for (final c in _scoreControllers) c.dispose();
     super.dispose();
@@ -204,6 +206,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     final startTime = DateTime(_date.year, _date.month, _date.day, 12, 0);
     final endTime = startTime.add(Duration(seconds: totalSeconds));
 
+    final location = _locationController.text.trim();
     await context.read<SessionProvider>().saveSession(
           gameId: game.id,
           gameName: game.name,
@@ -214,6 +217,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
           notes: combinedNotes,
           isFromCollection: !_isGuestGame,
           expansionIds: _selectedExpansionIds.toList(),
+          location: location.isEmpty ? null : location,
         );
 
     if (mounted) {
@@ -673,6 +677,16 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
               prefixIcon: Icon(Icons.note),
             ),
             maxLines: 2,
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _locationController,
+            decoration: InputDecoration(
+              labelText: s.sessionLocationLabel,
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.place_outlined),
+            ),
+            textCapitalization: TextCapitalization.words,
           ),
           const SizedBox(height: 24),
 
