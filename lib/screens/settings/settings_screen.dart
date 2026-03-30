@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
+import '../../providers/session_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/wishlist_provider.dart';
+import '../../services/export_service.dart';
 
 // ignore_for_file: use_build_context_synchronously
 
@@ -265,6 +269,11 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+
+            // ── EXPORT ───────────────────────────────────────────────────────
+            _SectionHeader(s.settingsExport),
+            _ExportSection(),
             const SizedBox(height: 16),
 
             // ── ABOUT ────────────────────────────────────────────────────────
@@ -531,6 +540,158 @@ class _CurrencyChip extends StatelessWidget {
       label: Text(label, style: const TextStyle(fontFamily: 'monospace')),
       selected: selected,
       onSelected: (_) => onTap(),
+    );
+  }
+}
+
+// ─── Export section ───────────────────────────────────────────────────────────
+
+class _ExportSection extends StatefulWidget {
+  const _ExportSection();
+
+  @override
+  State<_ExportSection> createState() => _ExportSectionState();
+}
+
+class _ExportSectionState extends State<_ExportSection> {
+  bool _loading = false;
+
+  Future<void> _run(Future<void> Function() action) async {
+    if (_loading) return;
+    final s = context.read<LanguageProvider>().strings;
+    setState(() => _loading = true);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(s.exportPreparing)));
+    try {
+      await action();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
+    final games = context.watch<GameProvider>().games;
+    final sessions = context.watch<SessionProvider>().sessions;
+    final wishlist = context.watch<WishlistProvider>().items;
+
+    return Card(
+      child: Stack(
+        children: [
+          Column(
+            children: [
+              // ── Full backup ──
+              _ExportTile(
+                icon: Icons.data_object,
+                title: s.exportFullJson,
+                subtitle: s.exportFullJsonSub,
+                onTap: _loading
+                    ? null
+                    : () => _run(() =>
+                        ExportService.exportJson(games, sessions, wishlist)),
+              ),
+              const Divider(height: 1),
+              _ExportTile(
+                icon: Icons.folder_zip_outlined,
+                title: s.exportFullZip,
+                subtitle: s.exportFullZipSub,
+                onTap: _loading
+                    ? null
+                    : () => _run(() =>
+                        ExportService.exportZip(games, sessions, wishlist)),
+              ),
+              const Divider(height: 1),
+
+              // ── Individual CSVs ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(s.exportIndividual,
+                      style: const TextStyle(
+                          color: Colors.grey, fontSize: 12)),
+                ),
+              ),
+              _ExportTile(
+                icon: Icons.sports_esports_outlined,
+                title: s.exportSessions,
+                subtitle: 'sessions.csv',
+                onTap: _loading
+                    ? null
+                    : () => _run(
+                        () => ExportService.exportSessionsCsv(sessions)),
+              ),
+              const Divider(height: 1),
+              _ExportTile(
+                icon: Icons.casino_outlined,
+                title: s.exportCollection,
+                subtitle: 'collection.csv',
+                onTap: _loading
+                    ? null
+                    : () =>
+                        _run(() => ExportService.exportCollectionCsv(games)),
+              ),
+              const Divider(height: 1),
+              _ExportTile(
+                icon: Icons.bookmark_outline,
+                title: s.exportWishlist,
+                subtitle: 'wishlist.csv',
+                onTap: _loading
+                    ? null
+                    : () => _run(
+                        () => ExportService.exportWishlistCsv(wishlist)),
+              ),
+              const Divider(height: 1),
+              _ExportTile(
+                icon: Icons.bar_chart_outlined,
+                title: s.exportStatistics,
+                subtitle: 'statistics.csv',
+                onTap: _loading
+                    ? null
+                    : () => _run(
+                        () => ExportService.exportStatsCsv(sessions)),
+              ),
+            ],
+          ),
+          if (_loading)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExportTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+
+  const _ExportTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(subtitle,
+          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      trailing: const Icon(Icons.ios_share, size: 18),
+      onTap: onTap,
     );
   }
 }

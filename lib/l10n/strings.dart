@@ -342,6 +342,20 @@ abstract class AppStrings {
   String get settingsVersion;
   String get settingsBggCredit;
   String get settingsBuiltWith;
+
+  // Export
+  String get settingsExport;
+  String get exportFullJson;
+  String get exportFullJsonSub;
+  String get exportFullZip;
+  String get exportFullZipSub;
+  String get exportIndividual;
+  String get exportSessions;
+  String get exportCollection;
+  String get exportWishlist;
+  String get exportStatistics;
+  String get exportPreparing;
+  String get exportDone;
   String get settingsCurrency;
   String get settingsPriceSearch;
 }
@@ -700,6 +714,18 @@ class EnStrings extends AppStrings {
   @override String get settingsVersion => 'Version';
   @override String get settingsBggCredit => 'Board game data powered by BoardGameGeek';
   @override String get settingsBuiltWith => 'Built with Flutter ❤️';
+  @override String get settingsExport => 'EXPORT';
+  @override String get exportFullJson => 'Full backup (JSON)';
+  @override String get exportFullJsonSub => 'All data in one .json file';
+  @override String get exportFullZip => 'Full backup (ZIP)';
+  @override String get exportFullZipSub => 'JSON + all CSVs in one archive';
+  @override String get exportIndividual => 'Individual CSV files';
+  @override String get exportSessions => 'Sessions';
+  @override String get exportCollection => 'Collection';
+  @override String get exportWishlist => 'Wishlist';
+  @override String get exportStatistics => 'Statistics';
+  @override String get exportPreparing => 'Preparing export…';
+  @override String get exportDone => 'Export ready';
   @override String get settingsCurrency => 'Currency';
   @override String get settingsPriceSearch => 'Price search engine';
 }
@@ -1054,6 +1080,18 @@ class PlStrings extends AppStrings {
   @override String get settingsVersion => 'Wersja';
   @override String get settingsBggCredit => 'Dane gier dostarczone przez BoardGameGeek';
   @override String get settingsBuiltWith => 'Stworzone z Flutter ❤️';
+  @override String get settingsExport => 'EKSPORT';
+  @override String get exportFullJson => 'Pełna kopia zapasowa (JSON)';
+  @override String get exportFullJsonSub => 'Wszystkie dane w jednym pliku .json';
+  @override String get exportFullZip => 'Pełna kopia zapasowa (ZIP)';
+  @override String get exportFullZipSub => 'JSON + wszystkie CSV w jednym archiwum';
+  @override String get exportIndividual => 'Pojedyncze pliki CSV';
+  @override String get exportSessions => 'Sesje';
+  @override String get exportCollection => 'Kolekcja';
+  @override String get exportWishlist => 'Lista życzeń';
+  @override String get exportStatistics => 'Statystyki';
+  @override String get exportPreparing => 'Przygotowywanie eksportu…';
+  @override String get exportDone => 'Eksport gotowy';
   @override String get settingsCurrency => 'Waluta';
   @override String get settingsPriceSearch => 'Wyszukiwarka cen';
 }
