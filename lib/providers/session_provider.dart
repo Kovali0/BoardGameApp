@@ -27,6 +27,7 @@ class SessionProvider with ChangeNotifier {
     bool isFromCollection = true,
     List<String> expansionIds = const [],
     String? location,
+    String? tiebreaker,
   }) async {
     final sessionId = _uuid.v4();
     final players = playerData
@@ -53,6 +54,7 @@ class SessionProvider with ChangeNotifier {
       isFromCollection: isFromCollection,
       expansionIds: expansionIds,
       location: location,
+      tiebreaker: tiebreaker,
     );
     await _db.insertSession(session);
     _sessions.insert(0, session);

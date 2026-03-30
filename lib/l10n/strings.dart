@@ -179,6 +179,7 @@ abstract class AppStrings {
   String get sessionDetailResults;
   String get sessionDetailStartedGame;
   String get sessionDetailNotes;
+  String get sessionDetailTiebreaker;
   String get deleteSessionTitle;
   String get deleteSessionContent;
 
@@ -534,6 +535,7 @@ class EnStrings extends AppStrings {
   @override String get sessionDetailResults => 'Results';
   @override String get sessionDetailStartedGame => 'started the game';
   @override String get sessionDetailNotes => 'Notes';
+  @override String get sessionDetailTiebreaker => 'Tiebreaker';
   @override String get deleteSessionTitle => 'Delete Session?';
   @override String get deleteSessionContent => 'This session record will be permanently deleted.';
 
@@ -883,6 +885,7 @@ class PlStrings extends AppStrings {
   @override String get sessionDetailResults => 'Wyniki';
   @override String get sessionDetailStartedGame => 'zaczął grę';
   @override String get sessionDetailNotes => 'Notatki';
+  @override String get sessionDetailTiebreaker => 'Rozstrzygnięcie';
   @override String get deleteSessionTitle => 'Usunąć sesję?';
   @override String get deleteSessionContent => 'Ta sesja zostanie trwale usunięta.';
 

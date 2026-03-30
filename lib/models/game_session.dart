@@ -13,6 +13,7 @@ class GameSession {
   final bool isFromCollection;
   final List<String> expansionIds;
   final String? location;
+  final String? tiebreaker;
 
   const GameSession({
     required this.id,
@@ -26,6 +27,7 @@ class GameSession {
     this.isFromCollection = true,
     this.expansionIds = const [],
     this.location,
+    this.tiebreaker,
   });
 
   String get durationFormatted {
@@ -48,6 +50,7 @@ class GameSession {
         'is_from_collection': isFromCollection ? 1 : 0,
         'expansion_ids': jsonEncode(expansionIds),
         'location': location,
+        'tiebreaker': tiebreaker,
       };
 
   factory GameSession.fromMap(
@@ -75,6 +78,7 @@ class GameSession {
       isFromCollection: (map['is_from_collection'] as int? ?? 1) == 1,
       expansionIds: expansionIds,
       location: map['location'] as String?,
+      tiebreaker: map['tiebreaker'] as String?,
     );
   }
 }

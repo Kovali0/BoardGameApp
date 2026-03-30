@@ -171,14 +171,6 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
   Future<void> _save() async {
     final tieNote = _tiebreakerController.text.trim();
     final generalNote = _notesController.text.trim();
-    String? combinedNotes;
-    if (tieNote.isNotEmpty && generalNote.isNotEmpty) {
-      combinedNotes = '[Tiebreaker: $tieNote]\n$generalNote';
-    } else if (tieNote.isNotEmpty) {
-      combinedNotes = '[Tiebreaker: $tieNote]';
-    } else if (generalNote.isNotEmpty) {
-      combinedNotes = generalNote;
-    }
 
     List<Map<String, dynamic>> saveData;
     List<Map<String, dynamic>> resultsData;
@@ -230,10 +222,11 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
           endTime: DateTime.now(),
           durationSeconds: widget.durationSeconds,
           playerData: saveData,
-          notes: combinedNotes,
+          notes: generalNote.isEmpty ? null : generalNote,
           isFromCollection: widget.isFromCollection,
           expansionIds: widget.expansionIds,
           location: location.isEmpty ? null : location,
+          tiebreaker: tieNote.isEmpty ? null : tieNote,
         );
 
     if (mounted) {

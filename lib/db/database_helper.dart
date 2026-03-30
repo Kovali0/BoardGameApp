@@ -22,7 +22,7 @@ class DatabaseHelper {
     final path = join(dbPath, 'board_game_manager.db');
     return openDatabase(
       path,
-      version: 13,
+      version: 14,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -95,6 +95,9 @@ class DatabaseHelper {
     if (oldVersion < 13) {
       await db.execute('ALTER TABLE sessions ADD COLUMN location TEXT');
     }
+    if (oldVersion < 14) {
+      await db.execute('ALTER TABLE sessions ADD COLUMN tiebreaker TEXT');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -137,7 +140,8 @@ class DatabaseHelper {
         notes TEXT,
         is_from_collection INTEGER NOT NULL DEFAULT 1,
         expansion_ids TEXT DEFAULT '[]',
-        location TEXT
+        location TEXT,
+        tiebreaker TEXT
       )
     ''');
 

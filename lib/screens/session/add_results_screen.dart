@@ -194,14 +194,6 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
 
     final tieNote = _tiebreakerController.text.trim();
     final generalNote = _notesController.text.trim();
-    String? combinedNotes;
-    if (tieNote.isNotEmpty && generalNote.isNotEmpty) {
-      combinedNotes = '[Tiebreaker: $tieNote]\n$generalNote';
-    } else if (tieNote.isNotEmpty) {
-      combinedNotes = '[Tiebreaker: $tieNote]';
-    } else if (generalNote.isNotEmpty) {
-      combinedNotes = generalNote;
-    }
 
     final startTime = DateTime(_date.year, _date.month, _date.day, 12, 0);
     final endTime = startTime.add(Duration(seconds: totalSeconds));
@@ -214,10 +206,11 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
           endTime: endTime,
           durationSeconds: totalSeconds,
           playerData: players,
-          notes: combinedNotes,
+          notes: generalNote.isEmpty ? null : generalNote,
           isFromCollection: !_isGuestGame,
           expansionIds: _selectedExpansionIds.toList(),
           location: location.isEmpty ? null : location,
+          tiebreaker: tieNote.isEmpty ? null : tieNote,
         );
 
     if (mounted) {

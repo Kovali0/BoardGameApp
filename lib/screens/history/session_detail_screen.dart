@@ -192,17 +192,59 @@ class SessionDetailScreen extends StatelessWidget {
               },
             ),
           ],
-          if (session.notes != null && session.notes!.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(s.sessionDetailNotes, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(session.notes!),
-              ),
-            ),
-          ],
+          // ── Tiebreaker ──────────────────────────────────────────────────
+          // New sessions: use dedicated field. Old sessions: parse from notes.
+          ...() {
+            String? tieText = session.tiebreaker;
+            String? notesText = session.notes;
+
+            // Backwards compat: extract [Tiebreaker: ...] embedded in old notes
+            if (tieText == null && notesText != null) {
+              final match = RegExp(r'^\[Tiebreaker: (.*?)\]\n?', dotAll: true)
+                  .firstMatch(notesText);
+              if (match != null) {
+                tieText = match.group(1);
+                final stripped = notesText.substring(match.end).trim();
+                notesText = stripped.isEmpty ? null : stripped;
+              }
+            }
+
+            return [
+              if (tieText != null && tieText.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(s.sessionDetailTiebreaker,
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Card(
+                  color: Colors.orange.withValues(alpha: 0.12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.balance,
+                            size: 18, color: Colors.orange),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text(tieText)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              if (notesText != null && notesText.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(s.sessionDetailNotes,
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(notesText),
+                  ),
+                ),
+              ],
+            ];
+          }(),
         ],
       ),
     );
