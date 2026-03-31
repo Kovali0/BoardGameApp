@@ -280,10 +280,13 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                     const SizedBox(height: 12),
                     const Divider(height: 1),
                     const SizedBox(height: 10),
-                    _PriceRows(
-                      game: game,
-                      allGames: allGames,
-                      s: s,
+                    Consumer<SessionProvider>(
+                      builder: (context, sessions, _) => _PriceRows(
+                        game: game,
+                        allGames: allGames,
+                        s: s,
+                        sessionCount: sessions.sessionsForGame(game.id).length,
+                      ),
                     ),
                   ],
                 ],
@@ -789,11 +792,13 @@ class _PriceRows extends StatelessWidget {
   final BoardGame game;
   final List<BoardGame> allGames;
   final dynamic s;
+  final int sessionCount;
 
   const _PriceRows({
     required this.game,
     required this.allGames,
     required this.s,
+    required this.sessionCount,
   });
 
   @override
@@ -845,6 +850,16 @@ class _PriceRows extends StatelessWidget {
                 : null,
           ),
         ],
+        // Cost per play — only when there's a bought price and at least 1 session
+        if (game.boughtPrice != null && sessionCount > 0) ...[
+          const SizedBox(height: 4),
+          _PriceRow(
+            icon: Icons.calculate_outlined,
+            label: s.gameDetailCostPerPlay,
+            value: '${(game.boughtPrice! / sessionCount).toStringAsFixed(2)} $symbol',
+            subtitle: '$sessionCount× played',
+          ),
+        ],
         // With all expansions row — only for base games with priced expansions
         if (!game.isExpansion && hasExpansionPrices) ...[
           const SizedBox(height: 8),
@@ -874,6 +889,15 @@ class _PriceRows extends StatelessWidget {
                   : null,
             ),
           ],
+          if ((game.boughtPrice != null || expansionBought > 0) && sessionCount > 0) ...[
+            const SizedBox(height: 4),
+            _PriceRow(
+              icon: Icons.calculate_outlined,
+              label: s.gameDetailCostPerPlay,
+              value: _fmt(((game.boughtPrice ?? 0) + expansionBought) / sessionCount),
+              subtitle: '$sessionCount× played',
+            ),
+          ],
         ],
       ],
     );
@@ -885,12 +909,14 @@ class _PriceRow extends StatelessWidget {
   final String label;
   final String value;
   final double? gain;
+  final String? subtitle;
 
   const _PriceRow({
     required this.icon,
     required this.label,
     required this.value,
     this.gain,
+    this.subtitle,
   });
 
   @override
@@ -926,6 +952,14 @@ class _PriceRow extends StatelessWidget {
                 color: gain! >= 0 ? Colors.green.shade700 : Colors.red.shade700,
               ),
             ),
+          ),
+        ],
+        if (subtitle != null) ...[
+          const SizedBox(width: 6),
+          Text(
+            subtitle!,
+            style: TextStyle(
+                fontSize: 11, color: theme.colorScheme.outline),
           ),
         ],
       ],

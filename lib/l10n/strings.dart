@@ -348,6 +348,7 @@ abstract class AppStrings {
   String get gameDetailCurrentPrice;
   String get gameDetailAcquiredAt;
   String get gameDetailWithExpansions;
+  String get gameDetailCostPerPlay;
 
   // Settings
   String get settingsTitle;
@@ -775,6 +776,7 @@ class EnStrings extends AppStrings {
   @override String get gameDetailCurrentPrice => 'Current price';
   @override String get gameDetailAcquiredAt => 'Acquired';
   @override String get gameDetailWithExpansions => 'With all expansions';
+  @override String get gameDetailCostPerPlay => 'Cost per play';
 
   // Settings
   @override String get settingsTitle => 'Settings';
@@ -1203,6 +1205,7 @@ class PlStrings extends AppStrings {
   @override String get gameDetailCurrentPrice => 'Cena aktualna';
   @override String get gameDetailAcquiredAt => 'Data nabycia';
   @override String get gameDetailWithExpansions => 'Z wszystkimi rozszerzeniami';
+  @override String get gameDetailCostPerPlay => 'Koszt za partię';
 
   // Settings
   @override String get settingsTitle => 'Ustawienia';
