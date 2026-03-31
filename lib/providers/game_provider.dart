@@ -140,6 +140,97 @@ class GameProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Import ──────────────────────────────────────────────────────────────────
+
+  /// Imports games from a parsed JSON export (each map has an 'id' field).
+  /// Skips games whose id already exists. Returns added/skipped counts.
+  Future<({int added, int skipped})> importGamesFromJson(
+      List<Map<String, dynamic>> maps) async {
+    final existingIds = _games.map((g) => g.id).toSet();
+    int added = 0, skipped = 0;
+    for (final map in maps) {
+      final id = map['id'] as String?;
+      if (id == null || existingIds.contains(id)) {
+        skipped++;
+        continue;
+      }
+      try {
+        final game = BoardGame.fromMap(map);
+        await _db.insertGame(game);
+        _games.add(game);
+        existingIds.add(id);
+        added++;
+      } catch (_) {
+        skipped++;
+      }
+    }
+    if (added > 0) {
+      _games.sort((a, b) => a.name.compareTo(b.name));
+      notifyListeners();
+    }
+    return (added: added, skipped: skipped);
+  }
+
+  /// Imports games from a parsed Collection CSV (no 'id'; matched by lowercase name).
+  /// Categories/mechanics in CSV are '; '-separated strings.
+  Future<({int added, int skipped})> importGamesFromCsv(
+      List<Map<String, dynamic>> maps) async {
+    final existingNames =
+        _games.map((g) => g.name.toLowerCase()).toSet();
+    int added = 0, skipped = 0;
+    for (final map in maps) {
+      final name = (map['name'] as String? ?? '').trim();
+      if (name.isEmpty || existingNames.contains(name.toLowerCase())) {
+        skipped++;
+        continue;
+      }
+      try {
+        final cats = (map['categories'] as String? ?? '')
+            .split(';')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        final mechs = (map['mechanics'] as String? ?? '')
+            .split(';')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        final addedAt = DateTime.tryParse(
+                map['added_at'] as String? ?? '') ??
+            DateTime.now();
+        final game = BoardGame(
+          id: _uuid.v4(),
+          name: name,
+          minPlayers: map['min_players'] as int? ?? 2,
+          maxPlayers: map['max_players'] as int? ?? 4,
+          createdAt: addedAt,
+          hasBeenPlayed: (map['has_been_played'] as int? ?? 0) == 1,
+          minPlaytime: map['min_playtime'] as int?,
+          maxPlaytime: map['max_playtime'] as int?,
+          bggRating: map['bgg_rating'] as double?,
+          complexity: map['complexity'] as double?,
+          myRating: map['my_rating'] as double?,
+          isExpansion: (map['is_expansion'] as int? ?? 0) == 1,
+          categories: cats,
+          mechanics: mechs,
+          yearPublished: map['year_published'] as int?,
+          minAge: map['min_age'] as int?,
+        );
+        await _db.insertGame(game);
+        _games.add(game);
+        existingNames.add(name.toLowerCase());
+        added++;
+      } catch (_) {
+        skipped++;
+      }
+    }
+    if (added > 0) {
+      _games.sort((a, b) => a.name.compareTo(b.name));
+      notifyListeners();
+    }
+    return (added: added, skipped: skipped);
+  }
+
   /// Syncs the BGG collection for [username].
   /// Returns how many games were added vs already in collection.
   /// Throws if the username is not found or network fails.

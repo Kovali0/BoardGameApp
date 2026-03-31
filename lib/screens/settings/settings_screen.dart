@@ -6,7 +6,9 @@ import '../../providers/language_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/wishlist_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../services/export_service.dart';
+import '../../services/import_service.dart';
 
 // ignore_for_file: use_build_context_synchronously
 
@@ -269,6 +271,11 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+
+            // ── IMPORT ───────────────────────────────────────────────────────
+            _SectionHeader(s.settingsImport),
+            _ImportSection(),
             const SizedBox(height: 16),
 
             // ── EXPORT ───────────────────────────────────────────────────────
@@ -680,12 +687,14 @@ class _ExportTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
+  final IconData trailingIcon;
 
   const _ExportTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.trailingIcon = Icons.ios_share,
   });
 
   @override
@@ -695,7 +704,7 @@ class _ExportTile extends StatelessWidget {
       title: Text(title),
       subtitle: Text(subtitle,
           style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      trailing: const Icon(Icons.ios_share, size: 18),
+      trailing: Icon(trailingIcon, size: 18),
       onTap: onTap,
     );
   }
@@ -748,6 +757,191 @@ class _LanguageTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Import section ───────────────────────────────────────────────────────────
+
+class _ImportSection extends StatefulWidget {
+  const _ImportSection();
+
+  @override
+  State<_ImportSection> createState() => _ImportSectionState();
+}
+
+class _ImportSectionState extends State<_ImportSection> {
+  bool _loading = false;
+
+  Future<String?> _pickFile(List<String> extensions) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: extensions,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return null;
+    final bytes = result.files.first.bytes;
+    if (bytes == null) return null;
+    return String.fromCharCodes(bytes);
+  }
+
+  void _showSnack(String msg, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: error ? Colors.red.shade700 : null,
+    ));
+  }
+
+  Future<void> _importJson() async {
+    final s = context.read<LanguageProvider>().strings;
+    final gameProvider = context.read<GameProvider>();
+    final sessionProvider = context.read<SessionProvider>();
+    final wishlistProvider = context.read<WishlistProvider>();
+
+    setState(() => _loading = true);
+    _showSnack(s.importReading);
+    try {
+      final content = await _pickFile(['json']);
+      if (content == null) {
+        _showSnack(s.importNoFile);
+        return;
+      }
+      final parsed = ImportService.parseJson(content);
+      if (parsed.error != null) {
+        _showSnack(s.importError, error: true);
+        return;
+      }
+      final gRes = await gameProvider.importGamesFromJson(parsed.games);
+      final sRes = await sessionProvider.importSessionsFromJson(parsed.sessions);
+      final wRes = await wishlistProvider.importWishlistFromJson(parsed.wishlist);
+      _showSnack(s.importJsonResult(gRes.added, sRes.added, wRes.added));
+    } catch (_) {
+      _showSnack(s.importError, error: true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _importCollectionCsv() async {
+    final s = context.read<LanguageProvider>().strings;
+    final gameProvider = context.read<GameProvider>();
+    setState(() => _loading = true);
+    _showSnack(s.importReading);
+    try {
+      final content = await _pickFile(['csv']);
+      if (content == null) { _showSnack(s.importNoFile); return; }
+      final maps = ImportService.parseCollectionCsv(content);
+      if (maps.isEmpty) { _showSnack(s.importError, error: true); return; }
+      final res = await gameProvider.importGamesFromCsv(maps);
+      _showSnack(s.importCsvResult(res.added, res.skipped));
+    } catch (_) {
+      _showSnack(s.importError, error: true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _importSessionsCsv() async {
+    final s = context.read<LanguageProvider>().strings;
+    final sessionProvider = context.read<SessionProvider>();
+    setState(() => _loading = true);
+    _showSnack(s.importReading);
+    try {
+      final content = await _pickFile(['csv']);
+      if (content == null) { _showSnack(s.importNoFile); return; }
+      final maps = ImportService.parseSessionsCsv(content);
+      if (maps.isEmpty) { _showSnack(s.importError, error: true); return; }
+      final res = await sessionProvider.importSessionsFromCsv(maps);
+      _showSnack(s.importCsvResult(res.added, res.skipped));
+    } catch (_) {
+      _showSnack(s.importError, error: true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _importWishlistCsv() async {
+    final s = context.read<LanguageProvider>().strings;
+    final wishlistProvider = context.read<WishlistProvider>();
+    setState(() => _loading = true);
+    _showSnack(s.importReading);
+    try {
+      final content = await _pickFile(['csv']);
+      if (content == null) { _showSnack(s.importNoFile); return; }
+      final maps = ImportService.parseWishlistCsv(content);
+      if (maps.isEmpty) { _showSnack(s.importError, error: true); return; }
+      final res = await wishlistProvider.importWishlistFromCsv(maps);
+      _showSnack(s.importCsvResult(res.added, res.skipped));
+    } catch (_) {
+      _showSnack(s.importError, error: true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
+    return Card(
+      child: Stack(
+        children: [
+          Column(
+            children: [
+              _ExportTile(
+                icon: Icons.restore,
+                title: s.importFullJson,
+                subtitle: s.importFullJsonSub,
+                trailingIcon: Icons.file_open_outlined,
+                onTap: _loading ? null : _importJson,
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('CSV',
+                      style: const TextStyle(
+                          color: Colors.grey, fontSize: 12)),
+                ),
+              ),
+              _ExportTile(
+                icon: Icons.casino_outlined,
+                title: s.importCollection,
+                subtitle: s.importCollectionSub,
+                trailingIcon: Icons.file_open_outlined,
+                onTap: _loading ? null : _importCollectionCsv,
+              ),
+              const Divider(height: 1),
+              _ExportTile(
+                icon: Icons.sports_esports_outlined,
+                title: s.importSessions,
+                subtitle: s.importSessionsSub,
+                trailingIcon: Icons.file_open_outlined,
+                onTap: _loading ? null : _importSessionsCsv,
+              ),
+              const Divider(height: 1),
+              _ExportTile(
+                icon: Icons.bookmark_outline,
+                title: s.importWishlist,
+                subtitle: s.importWishlistSub,
+                trailingIcon: Icons.file_open_outlined,
+                onTap: _loading ? null : _importWishlistCsv,
+              ),
+            ],
+          ),
+          if (_loading)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+            ),
+        ],
       ),
     );
   }

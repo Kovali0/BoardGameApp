@@ -85,4 +85,82 @@ class WishlistProvider with ChangeNotifier {
     );
     await deleteItem(id);
   }
+
+  // ── Import ──────────────────────────────────────────────────────────────────
+
+  /// Imports wishlist items from JSON. Uses 'id' for duplicate detection.
+  Future<({int added, int skipped})> importWishlistFromJson(
+      List<Map<String, dynamic>> maps) async {
+    final existingIds = _items.map((i) => i.id).toSet();
+    int added = 0, skipped = 0;
+    for (final map in maps) {
+      final id = map['id'] as String?;
+      if (id == null || existingIds.contains(id)) {
+        skipped++;
+        continue;
+      }
+      try {
+        final item = WishlistItem.fromMap(map);
+        await _db.insertWishlistItem(item);
+        _items.add(item);
+        existingIds.add(id);
+        added++;
+      } catch (_) {
+        skipped++;
+      }
+    }
+    if (added > 0) {
+      _items.sort((a, b) {
+        final pc = b.priority.compareTo(a.priority);
+        return pc != 0 ? pc : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+      notifyListeners();
+    }
+    return (added: added, skipped: skipped);
+  }
+
+  /// Imports wishlist items from CSV. Deduplicates by lowercase name.
+  Future<({int added, int skipped})> importWishlistFromCsv(
+      List<Map<String, dynamic>> maps) async {
+    final existingNames = _items.map((i) => i.name.toLowerCase()).toSet();
+    int added = 0, skipped = 0;
+    for (final map in maps) {
+      final name = (map['name'] as String? ?? '').trim();
+      if (name.isEmpty || existingNames.contains(name.toLowerCase())) {
+        skipped++;
+        continue;
+      }
+      try {
+        final addedAt =
+            DateTime.tryParse(map['added_at'] as String? ?? '') ??
+                DateTime.now();
+        final item = WishlistItem(
+          id: _uuid.v4(),
+          name: name,
+          note: map['note'] as String?,
+          priority: map['priority'] as int? ?? 2,
+          bggRating: map['bgg_rating'] as double?,
+          complexity: map['complexity'] as double?,
+          minPlayers: map['min_players'] as int?,
+          maxPlayers: map['max_players'] as int?,
+          price: map['price'] as double?,
+          addedAt: addedAt,
+        );
+        await _db.insertWishlistItem(item);
+        _items.add(item);
+        existingNames.add(name.toLowerCase());
+        added++;
+      } catch (_) {
+        skipped++;
+      }
+    }
+    if (added > 0) {
+      _items.sort((a, b) {
+        final pc = b.priority.compareTo(a.priority);
+        return pc != 0 ? pc : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+      notifyListeners();
+    }
+    return (added: added, skipped: skipped);
+  }
 }

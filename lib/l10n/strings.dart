@@ -351,6 +351,22 @@ abstract class AppStrings {
   String get settingsBggCredit;
   String get settingsBuiltWith;
 
+  // Import
+  String get settingsImport;
+  String get importFullJson;
+  String get importFullJsonSub;
+  String get importSessions;
+  String get importSessionsSub;
+  String get importCollection;
+  String get importCollectionSub;
+  String get importWishlist;
+  String get importWishlistSub;
+  String get importReading;
+  String importJsonResult(int games, int sessions, int wishlist);
+  String importCsvResult(int added, int skipped);
+  String get importError;
+  String get importNoFile;
+
   // Export
   String get settingsExport;
   String get exportFullJson;
@@ -740,6 +756,24 @@ class EnStrings extends AppStrings {
   @override String get settingsVersion => 'Version';
   @override String get settingsBggCredit => 'Board game data powered by BoardGameGeek';
   @override String get settingsBuiltWith => 'Built with Flutter ❤️';
+  // Import
+  @override String get settingsImport => 'IMPORT';
+  @override String get importFullJson => 'Restore from JSON backup';
+  @override String get importFullJsonSub => 'Import all data from a .json backup file';
+  @override String get importSessions => 'Import sessions (CSV)';
+  @override String get importSessionsSub => 'sessions.csv — adds missing sessions';
+  @override String get importCollection => 'Import collection (CSV)';
+  @override String get importCollectionSub => 'collection.csv — adds missing games';
+  @override String get importWishlist => 'Import wishlist (CSV)';
+  @override String get importWishlistSub => 'wishlist.csv — adds missing items';
+  @override String get importReading => 'Reading file…';
+  @override String importJsonResult(int games, int sessions, int wishlist) =>
+      'Imported: $games game${games == 1 ? '' : 's'}, $sessions session${sessions == 1 ? '' : 's'}, $wishlist wishlist item${wishlist == 1 ? '' : 's'}.';
+  @override String importCsvResult(int added, int skipped) =>
+      '$added added, $skipped already exist.';
+  @override String get importError => 'Could not read file. Make sure it is a valid export.';
+  @override String get importNoFile => 'No file selected.';
+
   @override String get settingsExport => 'EXPORT';
   @override String get exportFullJson => 'Full backup (JSON)';
   @override String get exportFullJsonSub => 'All data in one .json file';
@@ -1125,6 +1159,29 @@ class PlStrings extends AppStrings {
   @override String get settingsVersion => 'Wersja';
   @override String get settingsBggCredit => 'Dane gier dostarczone przez BoardGameGeek';
   @override String get settingsBuiltWith => 'Stworzone z Flutter ❤️';
+  // Import
+  @override String get settingsImport => 'IMPORT';
+  @override String get importFullJson => 'Przywróć z kopii zapasowej (JSON)';
+  @override String get importFullJsonSub => 'Importuj wszystkie dane z pliku .json';
+  @override String get importSessions => 'Importuj sesje (CSV)';
+  @override String get importSessionsSub => 'sessions.csv — dodaje brakujące sesje';
+  @override String get importCollection => 'Importuj kolekcję (CSV)';
+  @override String get importCollectionSub => 'collection.csv — dodaje brakujące gry';
+  @override String get importWishlist => 'Importuj listę życzeń (CSV)';
+  @override String get importWishlistSub => 'wishlist.csv — dodaje brakujące pozycje';
+  @override String get importReading => 'Wczytywanie pliku…';
+  @override String importJsonResult(int games, int sessions, int wishlist) {
+    String g;
+    if (games == 1) g = '1 gra';
+    else if (games % 10 >= 2 && games % 10 <= 4 && (games % 100 < 10 || games % 100 >= 20)) g = '$games gry';
+    else g = '$games gier';
+    return 'Zaimportowano: $g, $sessions sesji, $wishlist życzeń.';
+  }
+  @override String importCsvResult(int added, int skipped) =>
+      '$added dodano, $skipped już istnieje.';
+  @override String get importError => 'Nie można odczytać pliku. Upewnij się, że to poprawny eksport.';
+  @override String get importNoFile => 'Nie wybrano pliku.';
+
   @override String get settingsExport => 'EKSPORT';
   @override String get exportFullJson => 'Pełna kopia zapasowa (JSON)';
   @override String get exportFullJsonSub => 'Wszystkie dane w jednym pliku .json';
