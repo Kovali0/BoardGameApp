@@ -366,6 +366,16 @@ abstract class AppStrings {
   String get exportDone;
   String get settingsCurrency;
   String get settingsPriceSearch;
+
+  // BGG Account
+  String get settingsBgg;
+  String get settingsBggUsername;
+  String get settingsBggUsernameHint;
+  String get settingsBggSync;
+  String get settingsBggSyncing;
+  String settingsBggSyncResult(int added, int skipped);
+  String get settingsBggSyncError;
+  String get settingsBggUserNotFound;
 }
 
 // ─── English ──────────────────────────────────────────────────────────────────
@@ -744,6 +754,17 @@ class EnStrings extends AppStrings {
   @override String get exportDone => 'Export ready';
   @override String get settingsCurrency => 'Currency';
   @override String get settingsPriceSearch => 'Price search engine';
+
+  // BGG Account
+  @override String get settingsBgg => 'BGG ACCOUNT';
+  @override String get settingsBggUsername => 'BGG Username';
+  @override String get settingsBggUsernameHint => 'Enter your BGG username';
+  @override String get settingsBggSync => 'Sync collection';
+  @override String get settingsBggSyncing => 'Syncing…';
+  @override String settingsBggSyncResult(int added, int skipped) =>
+      '$added game${added == 1 ? '' : 's'} added, $skipped already in collection.';
+  @override String get settingsBggSyncError => 'Sync failed. Check your username and connection.';
+  @override String get settingsBggUserNotFound => 'BGG user not found or collection is empty.';
 }
 
 // ─── Polish ───────────────────────────────────────────────────────────────────
@@ -1118,4 +1139,20 @@ class PlStrings extends AppStrings {
   @override String get exportDone => 'Eksport gotowy';
   @override String get settingsCurrency => 'Waluta';
   @override String get settingsPriceSearch => 'Wyszukiwarka cen';
+
+  // BGG Account
+  @override String get settingsBgg => 'KONTO BGG';
+  @override String get settingsBggUsername => 'Nazwa użytkownika BGG';
+  @override String get settingsBggUsernameHint => 'Wpisz swoją nazwę użytkownika BGG';
+  @override String get settingsBggSync => 'Synchronizuj kolekcję';
+  @override String get settingsBggSyncing => 'Synchronizuję…';
+  @override String settingsBggSyncResult(int added, int skipped) {
+    String addedStr;
+    if (added == 1) addedStr = '1 gra dodana';
+    else if (added % 10 >= 2 && added % 10 <= 4 && (added % 100 < 10 || added % 100 >= 20)) addedStr = '$added gry dodane';
+    else addedStr = '$added gier dodanych';
+    return '$addedStr, $skipped już w kolekcji.';
+  }
+  @override String get settingsBggSyncError => 'Synchronizacja nie powiodła się. Sprawdź nazwę i połączenie.';
+  @override String get settingsBggUserNotFound => 'Nie znaleziono użytkownika BGG lub kolekcja jest pusta.';
 }

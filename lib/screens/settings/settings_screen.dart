@@ -276,6 +276,11 @@ class SettingsScreen extends StatelessWidget {
             _ExportSection(),
             const SizedBox(height: 16),
 
+            // ── BGG ACCOUNT ──────────────────────────────────────────────────
+            _SectionHeader(s.settingsBgg),
+            _BggSection(),
+            const SizedBox(height: 16),
+
             // ── ABOUT ────────────────────────────────────────────────────────
             _SectionHeader(s.settingsAbout),
             Card(
@@ -739,6 +744,117 @@ class _LanguageTile extends StatelessWidget {
                 fontWeight:
                     selected ? FontWeight.bold : FontWeight.normal,
                 color: selected ? colorScheme.primary : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── BGG Account section ──────────────────────────────────────────────────────
+
+class _BggSection extends StatefulWidget {
+  const _BggSection();
+
+  @override
+  State<_BggSection> createState() => _BggSectionState();
+}
+
+class _BggSectionState extends State<_BggSection> {
+  late final TextEditingController _controller;
+  bool _syncing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final settings = context.read<SettingsProvider>();
+    _controller = TextEditingController(text: settings.bggUsername);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sync() async {
+    final username = _controller.text.trim();
+    if (username.isEmpty) return;
+
+    final settings = context.read<SettingsProvider>();
+    final gameProvider = context.read<GameProvider>();
+    final s = context.read<LanguageProvider>().strings;
+
+    await settings.setBggUsername(username);
+    setState(() => _syncing = true);
+
+    try {
+      final result = await gameProvider.syncBggCollection(username);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(s.settingsBggSyncResult(result.added, result.skipped))),
+      );
+    } on Exception catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().contains('notfound')
+          ? s.settingsBggUserNotFound
+          : s.settingsBggSyncError;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.red.shade700),
+      );
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(s.settingsBggUsername,
+                style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: InputDecoration(
+                      hintText: s.settingsBggUsernameHint,
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      prefixIcon: const Icon(Icons.person_outline, size: 20),
+                    ),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _sync(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _syncing ? null : _sync,
+                icon: _syncing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.sync, size: 18),
+                label: Text(_syncing ? s.settingsBggSyncing : s.settingsBggSync),
               ),
             ),
           ],

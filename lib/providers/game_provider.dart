@@ -139,4 +139,55 @@ class GameProvider with ChangeNotifier {
     _games.removeWhere((g) => g.id == id);
     notifyListeners();
   }
+
+  /// Syncs the BGG collection for [username].
+  /// Returns how many games were added vs already in collection.
+  /// Throws if the username is not found or network fails.
+  Future<({int added, int skipped})> syncBggCollection(String username) async {
+    final bgg = BggService();
+
+    final collectionIds = await bgg.fetchCollectionIds(username);
+    if (collectionIds.isEmpty) {
+      throw Exception('notfound');
+    }
+
+    final existingBggIds = _games
+        .where((g) => g.bggId != null)
+        .map((g) => g.bggId!)
+        .toSet();
+
+    final newIds = collectionIds
+        .where((id) => !existingBggIds.contains(id))
+        .toList();
+
+    final skipped = collectionIds.length - newIds.length;
+
+    if (newIds.isEmpty) {
+      return (added: 0, skipped: skipped);
+    }
+
+    final details = await bgg.fetchGameDetailsBatch(newIds);
+
+    for (final d in details) {
+      await addGame(
+        name: d.name,
+        description: d.description,
+        minPlayers: d.minPlayers,
+        maxPlayers: d.maxPlayers,
+        imageUrl: d.imageUrl,
+        thumbnailUrl: d.thumbnailUrl,
+        minPlaytime: d.minPlaytime,
+        maxPlaytime: d.maxPlaytime,
+        bggRating: d.bggRating,
+        complexity: d.complexity,
+        bggId: d.id,
+        categories: d.categories,
+        mechanics: d.mechanics,
+        yearPublished: d.yearPublished,
+        minAge: d.minAge,
+      );
+    }
+
+    return (added: details.length, skipped: skipped);
+  }
 }

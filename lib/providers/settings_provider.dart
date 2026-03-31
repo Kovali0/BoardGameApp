@@ -17,6 +17,7 @@ class SettingsProvider extends ChangeNotifier {
   AppPriceSearch _priceSearch = AppPriceSearch.google;
   List<String> _defaultPlayers = [];
   bool _timerFeedbackEnabled = true;
+  String _bggUsername = '';
 
   // ─── 6 preset accent colors ───────────────────────────────────────────────
   static const List<Color> accentColors = [
@@ -36,6 +37,7 @@ class SettingsProvider extends ChangeNotifier {
   AppPriceSearch get priceSearch => _priceSearch;
   List<String> get defaultPlayers => List.unmodifiable(_defaultPlayers);
   bool get timerFeedbackEnabled => _timerFeedbackEnabled;
+  String get bggUsername => _bggUsername;
 
   String get currencySymbol => switch (_currency) {
     AppCurrency.pln => 'zł',
@@ -107,6 +109,7 @@ class SettingsProvider extends ChangeNotifier {
 
     _defaultPlayers = prefs.getStringList('default_players') ?? [];
     _timerFeedbackEnabled = prefs.getBool('timer_feedback') ?? true;
+    _bggUsername = prefs.getString('bgg_username') ?? '';
 
     notifyListeners();
   }
@@ -191,5 +194,14 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('timer_feedback', value);
+  }
+
+  Future<void> setBggUsername(String value) async {
+    final trimmed = value.trim();
+    if (_bggUsername == trimmed) return;
+    _bggUsername = trimmed;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('bgg_username', trimmed);
   }
 }

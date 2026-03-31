@@ -519,6 +519,196 @@ class BggService {
     return results;
   }
 
+  /// Fetches BGG IDs of all owned games for [username].
+  /// Returns empty list if user not found, collection is empty, or any error occurs.
+  Future<List<String>> fetchCollectionIds(String username) async {
+    if (username.trim().isEmpty) return [];
+    debugPrint('[BGG] fetchCollectionIds: "$username"');
+
+    final uri = Uri.parse('$_baseUrl/collection').replace(queryParameters: {
+      'username': username.trim(),
+      'own': '1',
+      'type': 'boardgame',
+      'brief': '1',
+    });
+
+    var response = await http
+        .get(uri, headers: _headers)
+        .timeout(const Duration(seconds: 30));
+
+    // BGG may return 202 (queued) — retry until ready
+    int retries = 0;
+    while (response.statusCode == 202 && retries < 10) {
+      debugPrint('[BGG] 202 queued, retrying collection...');
+      await Future.delayed(const Duration(seconds: 3));
+      response = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 30));
+      retries++;
+    }
+
+    if (response.statusCode != 200) {
+      debugPrint('[BGG] collection status=${response.statusCode}');
+      return [];
+    }
+
+    final doc = xml.XmlDocument.parse(response.body);
+    final ids = doc
+        .findAllElements('item')
+        .where((e) => e.getAttribute('subtype') == 'boardgame')
+        .map((e) => e.getAttribute('objectid'))
+        .where((id) => id != null && id.isNotEmpty)
+        .cast<String>()
+        .toList();
+
+    debugPrint('[BGG] collection ids: ${ids.length}');
+    return ids;
+  }
+
+  /// Batch-fetches full game details for the given BGG [ids] (in chunks of 20).
+  Future<List<BggGameDetail>> fetchGameDetailsBatch(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final results = <BggGameDetail>[];
+    const chunkSize = 20;
+
+    for (int start = 0; start < ids.length; start += chunkSize) {
+      final chunk = ids.skip(start).take(chunkSize).toList();
+      final idsStr = chunk.join(',');
+
+      final uri = Uri.parse('$_baseUrl/thing').replace(queryParameters: {
+        'id': idsStr,
+        'stats': '1',
+      });
+
+      var response = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 30));
+
+      int retries = 0;
+      while (response.statusCode == 202 && retries < 10) {
+        debugPrint('[BGG] 202 queued, retrying batch...');
+        await Future.delayed(const Duration(seconds: 2));
+        response = await http
+            .get(uri, headers: _headers)
+            .timeout(const Duration(seconds: 30));
+        retries++;
+      }
+
+      if (response.statusCode != 200) continue;
+
+      final doc = xml.XmlDocument.parse(response.body);
+      for (final item in doc.findAllElements('item')) {
+        final id = item.getAttribute('id');
+        if (id == null) continue;
+
+        final primaryName = item
+            .findAllElements('name')
+            .where((e) => e.getAttribute('type') == 'primary')
+            .firstOrNull ??
+            item.findAllElements('name').firstOrNull;
+        final name = primaryName?.getAttribute('value');
+        if (name == null || name.isEmpty) continue;
+
+        final yearStr = item
+            .findAllElements('yearpublished')
+            .firstOrNull
+            ?.getAttribute('value');
+        final year = yearStr != null ? int.tryParse(yearStr) : null;
+
+        final minStr = item
+            .findAllElements('minplayers')
+            .firstOrNull
+            ?.getAttribute('value');
+        final maxStr = item
+            .findAllElements('maxplayers')
+            .firstOrNull
+            ?.getAttribute('value');
+        final minPlayers = (minStr != null ? int.tryParse(minStr) : null) ?? 2;
+        final maxPlayers = (maxStr != null ? int.tryParse(maxStr) : null) ?? 4;
+
+        final minTimeStr = item
+            .findAllElements('minplaytime')
+            .firstOrNull
+            ?.getAttribute('value');
+        final maxTimeStr = item
+            .findAllElements('maxplaytime')
+            .firstOrNull
+            ?.getAttribute('value');
+        final minPlaytime = minTimeStr != null ? int.tryParse(minTimeStr) : null;
+        final maxPlaytime = maxTimeStr != null ? int.tryParse(maxTimeStr) : null;
+
+        final descRaw =
+            item.findAllElements('description').firstOrNull?.innerText;
+        final desc = descRaw
+            ?.replaceAll('&#10;', '\n')
+            .replaceAll('&mdash;', '—')
+            .replaceAll('&ndash;', '–')
+            .trim();
+
+        final rawImage =
+            item.findAllElements('image').firstOrNull?.innerText.trim();
+        final rawThumb =
+            item.findAllElements('thumbnail').firstOrNull?.innerText.trim();
+
+        final ratings = item.findAllElements('ratings').firstOrNull;
+        final ratingStr = ratings
+            ?.findAllElements('average')
+            .firstOrNull
+            ?.getAttribute('value');
+        final complexityStr = ratings
+            ?.findAllElements('averageweight')
+            .firstOrNull
+            ?.getAttribute('value');
+        final bggRating = ratingStr != null ? double.tryParse(ratingStr) : null;
+        final complexity =
+            complexityStr != null ? double.tryParse(complexityStr) : null;
+
+        final categories = item
+            .findAllElements('link')
+            .where((e) => e.getAttribute('type') == 'boardgamecategory')
+            .map((e) => e.getAttribute('value'))
+            .where((v) => v != null && v.isNotEmpty)
+            .cast<String>()
+            .toList();
+
+        final mechanics = item
+            .findAllElements('link')
+            .where((e) => e.getAttribute('type') == 'boardgamemechanic')
+            .map((e) => e.getAttribute('value'))
+            .where((v) => v != null && v.isNotEmpty)
+            .cast<String>()
+            .toList();
+
+        final minAgeStr = item
+            .findAllElements('minage')
+            .firstOrNull
+            ?.getAttribute('value');
+        final minAge = minAgeStr != null ? int.tryParse(minAgeStr) : null;
+
+        results.add(BggGameDetail(
+          id: id,
+          name: name,
+          description: (desc == null || desc.isEmpty) ? null : desc,
+          minPlayers: minPlayers,
+          maxPlayers: maxPlayers,
+          yearPublished: year,
+          imageUrl: _normalizeImageUrl(rawImage),
+          thumbnailUrl: _normalizeImageUrl(rawThumb),
+          minPlaytime: minPlaytime,
+          maxPlaytime: maxPlaytime,
+          bggRating: (bggRating != null && bggRating > 0) ? bggRating : null,
+          complexity: (complexity != null && complexity > 0) ? complexity : null,
+          categories: categories,
+          mechanics: mechanics,
+          minAge: (minAge != null && minAge > 0) ? minAge : null,
+        ));
+      }
+    }
+
+    debugPrint('[BGG] fetchGameDetailsBatch returning ${results.length} items');
+    return results;
+  }
+
   /// BGG returns protocol-relative URLs like "//cf.geekdo-images.com/...".
   /// Prepend https: when needed.
   static String? _normalizeImageUrl(String? raw) {
