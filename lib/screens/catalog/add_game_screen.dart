@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../models/board_game.dart';
 import '../../services/bgg_service.dart';
 
@@ -46,6 +48,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
   int? _yearPublished;
   int? _minAge;
 
+  late final TextEditingController _boughtPriceController;
+  late final TextEditingController _currentPriceController;
+  DateTime? _acquiredAt;
+
   bool get _isEditing => widget.game != null;
 
   @override
@@ -77,6 +83,11 @@ class _AddGameScreenState extends State<AddGameScreen> {
     _mechanics = g?.mechanics ?? [];
     _yearPublished = g?.yearPublished;
     _minAge = g?.minAge;
+    _boughtPriceController =
+        TextEditingController(text: g?.boughtPrice?.toStringAsFixed(2) ?? '');
+    _currentPriceController =
+        TextEditingController(text: g?.currentPrice?.toStringAsFixed(2) ?? '');
+    _acquiredAt = g?.acquiredAt ?? (_isEditing ? null : DateTime.now());
   }
 
   @override
@@ -91,6 +102,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
     _complexityController.dispose();
     _myRatingController.dispose();
     _myWeightController.dispose();
+    _boughtPriceController.dispose();
+    _currentPriceController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -191,6 +204,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
     final complexity = double.tryParse(_complexityController.text.trim());
     final myRating = double.tryParse(_myRatingController.text.trim());
     final myWeight = double.tryParse(_myWeightController.text.trim());
+    final boughtPrice = double.tryParse(_boughtPriceController.text.trim());
+    final currentPrice = double.tryParse(_currentPriceController.text.trim());
 
     if (_isEditing) {
       await provider.updateGame(widget.game!.copyWith(
@@ -211,6 +226,9 @@ class _AddGameScreenState extends State<AddGameScreen> {
         isExpansion: _isExpansion,
         categories: _categories,
         mechanics: _mechanics,
+        boughtPrice: boughtPrice,
+        currentPrice: currentPrice,
+        acquiredAt: _acquiredAt,
       ));
     } else {
       await provider.addGame(
@@ -233,6 +251,9 @@ class _AddGameScreenState extends State<AddGameScreen> {
         mechanics: _mechanics,
         yearPublished: _yearPublished,
         minAge: _minAge,
+        boughtPrice: boughtPrice,
+        currentPrice: currentPrice,
+        acquiredAt: _acquiredAt,
       );
     }
     if (mounted) Navigator.pop(context);
@@ -463,6 +484,81 @@ class _AddGameScreenState extends State<AddGameScreen> {
                 ),
                 maxLines: 6,
                 textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: 16),
+              Text(s.addGamePurchaseSection,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.tertiary)),
+              const SizedBox(height: 8),
+              // Acquired date picker
+              _AcquiredDateField(
+                date: _acquiredAt,
+                label: s.addGameAcquiredAtLabel,
+                noneLabel: s.addGameAcquiredAtNone,
+                onChanged: (d) => setState(() => _acquiredAt = d),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _boughtPriceController,
+                      decoration: InputDecoration(
+                        labelText: s.addGameBoughtPriceLabel,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.shopping_cart_outlined),
+                        suffixText: context.read<SettingsProvider>().currencySymbol,
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        if (double.tryParse(v.trim()) == null) return 'Invalid';
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _currentPriceController,
+                      decoration: InputDecoration(
+                        labelText: s.addGameCurrentPriceLabel,
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.sell_outlined),
+                        suffixText: context.read<SettingsProvider>().currencySymbol,
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        if (double.tryParse(v.trim()) == null) return 'Invalid';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.outlined(
+                    icon: const Icon(Icons.search, size: 20),
+                    tooltip: s.addGameSearchCurrentPrice,
+                    onPressed: () async {
+                      final name = _nameController.text.trim();
+                      if (name.isEmpty) return;
+                      final engine = context.read<SettingsProvider>().priceSearch;
+                      final suffix = context.read<LanguageProvider>().strings.wishlistSearchSuffix;
+                      final query = Uri.encodeComponent('$name $suffix');
+                      final url = switch (engine) {
+                        AppPriceSearch.amazon => 'https://www.amazon.com/s?k=$query',
+                        AppPriceSearch.ceneo  => 'https://www.ceneo.pl/szukaj-${Uri.encodeComponent(name)}',
+                        AppPriceSearch.google => 'https://www.google.com/search?q=$query',
+                      };
+                      final uri = Uri.parse(url);
+                      if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               FilledButton.icon(
@@ -812,6 +908,82 @@ class _PlayerCountField extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+// ─── Acquired date field ───────────────────────────────────────────────────────
+
+class _AcquiredDateField extends StatelessWidget {
+  final DateTime? date;
+  final String label;
+  final String noneLabel;
+  final ValueChanged<DateTime?> onChanged;
+
+  const _AcquiredDateField({
+    required this.date,
+    required this.label,
+    required this.noneLabel,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasDate = date != null;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () async {
+        final now = DateTime.now();
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: date ?? now,
+          firstDate: DateTime(1990),
+          lastDate: now,
+        );
+        if (picked != null) onChanged(picked);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: hasDate
+                ? theme.colorScheme.tertiary
+                : theme.colorScheme.outline,
+            width: hasDate ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_today_outlined,
+                size: 18,
+                color: hasDate
+                    ? theme.colorScheme.tertiary
+                    : theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                hasDate
+                    ? context.read<SettingsProvider>().formatDate(date!)
+                    : label,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: hasDate
+                      ? theme.colorScheme.onSurface
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            if (hasDate)
+              GestureDetector(
+                onTap: () => onChanged(null),
+                child: Icon(Icons.clear,
+                    size: 18, color: theme.colorScheme.onSurfaceVariant),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

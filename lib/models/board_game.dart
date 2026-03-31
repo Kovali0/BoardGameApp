@@ -24,6 +24,9 @@ class BoardGame {
   final List<String> mechanics;
   final int? yearPublished;
   final int? minAge;
+  final double? boughtPrice;
+  final double? currentPrice;
+  final DateTime? acquiredAt;
 
   const BoardGame({
     required this.id,
@@ -49,6 +52,9 @@ class BoardGame {
     this.mechanics = const [],
     this.yearPublished,
     this.minAge,
+    this.boughtPrice,
+    this.currentPrice,
+    this.acquiredAt,
   });
 
   Map<String, dynamic> toMap() => {
@@ -75,6 +81,9 @@ class BoardGame {
         'mechanics': jsonEncode(mechanics),
         'year_published': yearPublished,
         'min_age': minAge,
+        'bought_price': boughtPrice,
+        'current_price': currentPrice,
+        'acquired_at': acquiredAt?.toIso8601String(),
       };
 
   static List<String> _parseJsonList(dynamic raw) {
@@ -110,6 +119,11 @@ class BoardGame {
         mechanics: _parseJsonList(map['mechanics']),
         yearPublished: map['year_published'] as int?,
         minAge: map['min_age'] as int?,
+        boughtPrice: (map['bought_price'] as num?)?.toDouble(),
+        currentPrice: (map['current_price'] as num?)?.toDouble(),
+        acquiredAt: map['acquired_at'] != null
+            ? DateTime.tryParse(map['acquired_at'] as String)
+            : null,
       );
 
   BoardGame copyWith({
@@ -134,6 +148,9 @@ class BoardGame {
     List<String>? mechanics,
     int? yearPublished,
     int? minAge,
+    Object? boughtPrice = _sentinel,
+    Object? currentPrice = _sentinel,
+    Object? acquiredAt = _sentinel,
   }) =>
       BoardGame(
         id: id,
@@ -159,5 +176,14 @@ class BoardGame {
         mechanics: mechanics ?? this.mechanics,
         yearPublished: yearPublished ?? this.yearPublished,
         minAge: minAge ?? this.minAge,
+        boughtPrice:
+            boughtPrice == _sentinel ? this.boughtPrice : boughtPrice as double?,
+        currentPrice: currentPrice == _sentinel
+            ? this.currentPrice
+            : currentPrice as double?,
+        acquiredAt:
+            acquiredAt == _sentinel ? this.acquiredAt : acquiredAt as DateTime?,
       );
 }
+
+const _sentinel = Object();

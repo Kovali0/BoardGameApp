@@ -328,6 +328,27 @@ abstract class AppStrings {
   String get pickerYearModern;
   String get pickerYearRecent;
 
+  // Collection value
+  String get catalogCollectionValue;
+  String get catalogTotalSpent;
+  String get catalogCurrentValue;
+  String get catalogValueGain;
+  String catalogGamesTracked(int n);
+
+  // Purchase info (add/edit game)
+  String get addGamePurchaseSection;
+  String get addGameBoughtPriceLabel;
+  String get addGameCurrentPriceLabel;
+  String get addGameAcquiredAtLabel;
+  String get addGameAcquiredAtNone;
+  String get addGameSearchCurrentPrice;
+
+  // Game detail — price
+  String get gameDetailBoughtPrice;
+  String get gameDetailCurrentPrice;
+  String get gameDetailAcquiredAt;
+  String get gameDetailWithExpansions;
+
   // Settings
   String get settingsTitle;
   String get settingsAppearance;
@@ -734,6 +755,27 @@ class EnStrings extends AppStrings {
   @override String get pickerYearModern => 'Modern (2001–2015)';
   @override String get pickerYearRecent => 'Recent (2016+)';
 
+  // Collection value
+  @override String get catalogCollectionValue => 'Collection Value';
+  @override String get catalogTotalSpent => 'Spent';
+  @override String get catalogCurrentValue => 'Current value';
+  @override String get catalogValueGain => 'Gain';
+  @override String catalogGamesTracked(int n) => '$n game${n == 1 ? '' : 's'} tracked';
+
+  // Purchase info
+  @override String get addGamePurchaseSection => 'PURCHASE INFO';
+  @override String get addGameBoughtPriceLabel => 'Bought price (empty = free / gift)';
+  @override String get addGameCurrentPriceLabel => 'Current price';
+  @override String get addGameAcquiredAtLabel => 'Acquired';
+  @override String get addGameAcquiredAtNone => 'Not set';
+  @override String get addGameSearchCurrentPrice => 'Search current price';
+
+  // Game detail — price
+  @override String get gameDetailBoughtPrice => 'Bought for';
+  @override String get gameDetailCurrentPrice => 'Current price';
+  @override String get gameDetailAcquiredAt => 'Acquired';
+  @override String get gameDetailWithExpansions => 'With all expansions';
+
   // Settings
   @override String get settingsTitle => 'Settings';
   @override String get settingsAppearance => 'APPEARANCE';
@@ -1136,6 +1178,31 @@ class PlStrings extends AppStrings {
     if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return '$n gry pasują';
     return '$n gier pasuje';
   }
+
+  // Collection value
+  @override String get catalogCollectionValue => 'Wartość kolekcji';
+  @override String get catalogTotalSpent => 'Wydano';
+  @override String get catalogCurrentValue => 'Wartość aktualna';
+  @override String get catalogValueGain => 'Zysk';
+  @override String catalogGamesTracked(int n) {
+    if (n == 1) return '1 gra śledzona';
+    if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return '$n gry śledzone';
+    return '$n gier śledzonych';
+  }
+
+  // Purchase info
+  @override String get addGamePurchaseSection => 'INFORMACJE O ZAKUPIE';
+  @override String get addGameBoughtPriceLabel => 'Cena zakupu (puste = prezent / darmowa)';
+  @override String get addGameCurrentPriceLabel => 'Cena aktualna';
+  @override String get addGameAcquiredAtLabel => 'Data nabycia';
+  @override String get addGameAcquiredAtNone => 'Nie ustawiono';
+  @override String get addGameSearchCurrentPrice => 'Szukaj aktualnej ceny';
+
+  // Game detail — price
+  @override String get gameDetailBoughtPrice => 'Kupiona za';
+  @override String get gameDetailCurrentPrice => 'Cena aktualna';
+  @override String get gameDetailAcquiredAt => 'Data nabycia';
+  @override String get gameDetailWithExpansions => 'Z wszystkimi rozszerzeniami';
 
   // Settings
   @override String get settingsTitle => 'Ustawienia';

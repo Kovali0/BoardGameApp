@@ -37,6 +37,9 @@ class GameProvider with ChangeNotifier {
     List<String> mechanics = const [],
     int? yearPublished,
     int? minAge,
+    double? boughtPrice,
+    double? currentPrice,
+    DateTime? acquiredAt,
   }) async {
     final game = BoardGame(
       id: _uuid.v4(),
@@ -62,6 +65,9 @@ class GameProvider with ChangeNotifier {
       mechanics: mechanics,
       yearPublished: yearPublished,
       minAge: minAge,
+      boughtPrice: boughtPrice,
+      currentPrice: currentPrice,
+      acquiredAt: acquiredAt ?? DateTime.now(),
     );
     await _db.insertGame(game);
     _games.add(game);

@@ -22,7 +22,7 @@ class DatabaseHelper {
     final path = join(dbPath, 'board_game_manager.db');
     return openDatabase(
       path,
-      version: 14,
+      version: 15,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -98,6 +98,11 @@ class DatabaseHelper {
     if (oldVersion < 14) {
       await db.execute('ALTER TABLE sessions ADD COLUMN tiebreaker TEXT');
     }
+    if (oldVersion < 15) {
+      await db.execute('ALTER TABLE games ADD COLUMN bought_price REAL');
+      await db.execute('ALTER TABLE games ADD COLUMN current_price REAL');
+      await db.execute('ALTER TABLE games ADD COLUMN acquired_at TEXT');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -125,7 +130,10 @@ class DatabaseHelper {
         categories TEXT DEFAULT '[]',
         mechanics TEXT DEFAULT '[]',
         year_published INTEGER,
-        min_age INTEGER
+        min_age INTEGER,
+        bought_price REAL,
+        current_price REAL,
+        acquired_at TEXT
       )
     ''');
 

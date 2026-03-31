@@ -369,6 +369,7 @@ class _CatalogScreenState extends State<CatalogScreen>
           // ── Collection tab ──────────────────────────────────────────────
           Column(
             children: [
+              const _CollectionValueCard(),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
                 child: TextField(
@@ -559,6 +560,164 @@ class _CatalogScreenState extends State<CatalogScreen>
         icon: const Icon(Icons.add),
         label: Text(isCollection ? s.catalogAddGame : s.wishlistAddItem),
       ),
+    );
+  }
+}
+
+// ─── Collection value card ────────────────────────────────────────────────────
+
+class _CollectionValueCard extends StatefulWidget {
+  const _CollectionValueCard();
+
+  @override
+  State<_CollectionValueCard> createState() => _CollectionValueCardState();
+}
+
+class _CollectionValueCardState extends State<_CollectionValueCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
+    return Consumer<GameProvider>(
+      builder: (context, provider, _) {
+        final games = provider.games;
+
+        double totalSpent = 0;
+        double totalCurrent = 0;
+        int tracked = 0;
+
+        for (final g in games) {
+          final hasBought = g.boughtPrice != null;
+          final hasCurrent = g.currentPrice != null;
+          if (hasBought || hasCurrent) tracked++;
+          if (hasBought) totalSpent += g.boughtPrice!;
+          if (hasCurrent) totalCurrent += g.currentPrice!;
+        }
+
+        if (tracked == 0) return const SizedBox.shrink();
+
+        final gain = totalCurrent - totalSpent;
+        final gainPositive = gain >= 0;
+
+        return Card(
+          margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.account_balance_wallet_outlined,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        s.catalogCollectionValue,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const Spacer(),
+                      Text(
+                        s.catalogGamesTracked(tracked),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.outline),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        _expanded
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ],
+                  ),
+                  if (_expanded) ...[
+                    const SizedBox(height: 10),
+                    const Divider(height: 1),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ValueTile(
+                            label: s.catalogTotalSpent,
+                            value: totalSpent,
+                            icon: Icons.payments_outlined,
+                          ),
+                        ),
+                        Expanded(
+                          child: _ValueTile(
+                            label: s.catalogCurrentValue,
+                            value: totalCurrent,
+                            icon: Icons.trending_up,
+                          ),
+                        ),
+                        Expanded(
+                          child: _ValueTile(
+                            label: s.catalogValueGain,
+                            value: gain,
+                            icon: gainPositive
+                                ? Icons.arrow_upward
+                                : Icons.arrow_downward,
+                            color: gainPositive
+                                ? Colors.green.shade600
+                                : Colors.red.shade400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ValueTile extends StatelessWidget {
+  final String label;
+  final double value;
+  final IconData icon;
+  final Color? color;
+
+  const _ValueTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveColor =
+        color ?? Theme.of(context).colorScheme.onSurface;
+    return Column(
+      children: [
+        Icon(icon, size: 16, color: effectiveColor),
+        const SizedBox(height: 2),
+        Text(
+          value.toStringAsFixed(2),
+          style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: effectiveColor),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.outline),
+        ),
+      ],
     );
   }
 }

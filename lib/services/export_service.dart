@@ -96,6 +96,7 @@ class ExportService {
       'min_playtime', 'max_playtime', 'bgg_rating', 'complexity',
       'my_rating', 'year_published', 'min_age',
       'categories', 'mechanics', 'has_been_played', 'added_at',
+      'bought_price', 'current_price', 'acquired_at',
     ]));
     for (final g in games) {
       sb.writeln(_row([
@@ -114,6 +115,9 @@ class ExportService {
         g.mechanics.join('; '),
         g.hasBeenPlayed ? 'yes' : 'no',
         g.createdAt.toIso8601String().substring(0, 10),
+        g.boughtPrice,
+        g.currentPrice,
+        g.acquiredAt?.toIso8601String().substring(0, 10),
       ]));
     }
     return sb.toString();

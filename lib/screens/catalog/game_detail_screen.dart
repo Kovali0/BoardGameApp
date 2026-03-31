@@ -5,6 +5,7 @@ import '../../models/board_game.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
 import '../../providers/settings_provider.dart';
+// ignore_for_file: use_build_context_synchronously
 import '../../providers/session_provider.dart';
 import '../../services/bgg_service.dart';
 import '../session/play_landing_screen.dart';
@@ -85,7 +86,8 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final game = context.watch<GameProvider>().games.firstWhere(
+    final allGames = context.watch<GameProvider>().games;
+    final game = allGames.firstWhere(
           (g) => g.id == widget.game.id,
           orElse: () => widget.game,
         );
@@ -270,6 +272,19 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                       game.description!.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Text(game.description!),
+                  ],
+                  // ── Purchase info ──
+                  if (game.acquiredAt != null ||
+                      game.boughtPrice != null ||
+                      game.currentPrice != null) ...[
+                    const SizedBox(height: 12),
+                    const Divider(height: 1),
+                    const SizedBox(height: 10),
+                    _PriceRows(
+                      game: game,
+                      allGames: allGames,
+                      s: s,
+                    ),
                   ],
                 ],
               ),
@@ -764,6 +779,156 @@ class _ExpansionTile extends StatelessWidget {
         trailing: trailing,
         onTap: onTap,
       ),
+    );
+  }
+}
+
+// ─── Price rows ───────────────────────────────────────────────────────────────
+
+class _PriceRows extends StatelessWidget {
+  final BoardGame game;
+  final List<BoardGame> allGames;
+  final dynamic s;
+
+  const _PriceRows({
+    required this.game,
+    required this.allGames,
+    required this.s,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+    final symbol = settings.currencySymbol;
+
+    String _fmt(double v) => '${v.toStringAsFixed(2)} $symbol';
+
+    // Expansions owned for this base game
+    final expansions = game.isExpansion
+        ? <BoardGame>[]
+        : allGames.where((g) => g.baseGameId == game.id).toList();
+
+    final expansionBought = expansions
+        .where((e) => e.boughtPrice != null)
+        .fold<double>(0, (sum, e) => sum + e.boughtPrice!);
+    final expansionCurrent = expansions
+        .where((e) => e.currentPrice != null)
+        .fold<double>(0, (sum, e) => sum + e.currentPrice!);
+    final hasExpansionPrices = expansions.any(
+        (e) => e.boughtPrice != null || e.currentPrice != null);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (game.acquiredAt != null)
+          _PriceRow(
+            icon: Icons.calendar_today_outlined,
+            label: s.gameDetailAcquiredAt,
+            value: settings.formatDate(game.acquiredAt!),
+          ),
+        if (game.boughtPrice != null) ...[
+          if (game.acquiredAt != null) const SizedBox(height: 4),
+          _PriceRow(
+            icon: Icons.shopping_cart_outlined,
+            label: s.gameDetailBoughtPrice,
+            value: _fmt(game.boughtPrice!),
+          ),
+        ],
+        if (game.currentPrice != null) ...[
+          const SizedBox(height: 4),
+          _PriceRow(
+            icon: Icons.sell_outlined,
+            label: s.gameDetailCurrentPrice,
+            value: _fmt(game.currentPrice!),
+            gain: game.boughtPrice != null
+                ? game.currentPrice! - game.boughtPrice!
+                : null,
+          ),
+        ],
+        // With all expansions row — only for base games with priced expansions
+        if (!game.isExpansion && hasExpansionPrices) ...[
+          const SizedBox(height: 8),
+          const Divider(height: 1),
+          const SizedBox(height: 6),
+          Text(s.gameDetailWithExpansions,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.outline,
+                  fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          if (game.boughtPrice != null || expansionBought > 0)
+            _PriceRow(
+              icon: Icons.shopping_cart_outlined,
+              label: s.gameDetailBoughtPrice,
+              value: _fmt((game.boughtPrice ?? 0) + expansionBought),
+            ),
+          if (game.currentPrice != null || expansionCurrent > 0) ...[
+            const SizedBox(height: 4),
+            _PriceRow(
+              icon: Icons.sell_outlined,
+              label: s.gameDetailCurrentPrice,
+              value: _fmt((game.currentPrice ?? 0) + expansionCurrent),
+              gain: (game.boughtPrice != null || expansionBought > 0)
+                  ? ((game.currentPrice ?? 0) + expansionCurrent) -
+                      ((game.boughtPrice ?? 0) + expansionBought)
+                  : null,
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _PriceRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final double? gain;
+
+  const _PriceRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.gain,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Text(label,
+            style: TextStyle(
+                fontSize: 13, color: theme.colorScheme.onSurfaceVariant)),
+        const SizedBox(width: 8),
+        Text(value,
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600)),
+        if (gain != null) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: gain! >= 0
+                  ? Colors.green.withValues(alpha: 0.15)
+                  : Colors.red.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '${gain! >= 0 ? '+' : ''}${gain!.toStringAsFixed(0)}',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: gain! >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
