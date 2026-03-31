@@ -204,7 +204,9 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                   ),
                 )
               : GlobalStatsTab(
-                  sessions: filteredSessions, allGames: allGames),
+                  sessions: filteredSessions,
+                  allSessions: sessions,
+                  allGames: allGames),
           GamesStatsTab(
               sessions: filteredSessions, allGames: allGames),
           PlayersStatsTab(sessions: filteredSessions),

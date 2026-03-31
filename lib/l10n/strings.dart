@@ -251,6 +251,9 @@ abstract class AppStrings {
   String get statsWorstPartner;
   String get statsPartnerSessions;
   String get statsPartnerWins;
+  String get statsHeatmap;
+  String get statsHeatmapLess;
+  String get statsHeatmapMore;
 
   // Wishlist
   String get navWishlist;
@@ -678,6 +681,9 @@ class EnStrings extends AppStrings {
   @override String get statsWorstPartner => 'Worst team partner';
   @override String get statsPartnerSessions => 'Sessions together';
   @override String get statsPartnerWins => 'Wins together';
+  @override String get statsHeatmap => 'ACTIVITY';
+  @override String get statsHeatmapLess => 'Less';
+  @override String get statsHeatmapMore => 'More';
 
   // Wishlist
   @override String get navWishlist => 'Wishlist';
@@ -1100,6 +1106,9 @@ class PlStrings extends AppStrings {
   @override String get statsWorstPartner => 'Najgorszy partner';
   @override String get statsPartnerSessions => 'Sesje razem';
   @override String get statsPartnerWins => 'Wygrane razem';
+  @override String get statsHeatmap => 'AKTYWNOŚĆ';
+  @override String get statsHeatmapLess => 'Mniej';
+  @override String get statsHeatmapMore => 'Więcej';
 
   // Wishlist
   @override String get navWishlist => 'Życzenia';
