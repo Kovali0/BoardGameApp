@@ -982,19 +982,28 @@ class _GameCard extends StatelessWidget {
         ),
         title: Text(game.name,
             style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: game.isExpansion
+        subtitle: (game.isExpansion || game.isSealed)
             ? Wrap(
                 spacing: 6,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(s.catalogGamePlayers(game.minPlayers, game.maxPlayers)),
-                  Chip(
-                    label: const Text('EXP',
-                        style: TextStyle(fontSize: 10, color: Colors.white)),
-                    backgroundColor: Colors.deepPurple.shade400,
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                  ),
+                  if (game.isExpansion)
+                    Chip(
+                      label: const Text('EXP',
+                          style: TextStyle(fontSize: 10, color: Colors.white)),
+                      backgroundColor: Colors.deepPurple.shade400,
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  if (game.isSealed)
+                    Chip(
+                      label: const Text('SEALED',
+                          style: TextStyle(fontSize: 10, color: Colors.white)),
+                      backgroundColor: Colors.teal.shade600,
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                    ),
                 ],
               )
             : Text(s.catalogGamePlayers(game.minPlayers, game.maxPlayers)),
@@ -1085,15 +1094,29 @@ class _GameGridCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (game.isExpansion)
+                  if (game.isExpansion || game.isSealed)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
-                      child: Chip(
-                        label: const Text('EXP',
-                            style: TextStyle(fontSize: 9, color: Colors.white)),
-                        backgroundColor: Colors.deepPurple.shade400,
-                        padding: EdgeInsets.zero,
-                        visualDensity: VisualDensity.compact,
+                      child: Wrap(
+                        spacing: 4,
+                        children: [
+                          if (game.isExpansion)
+                            Chip(
+                              label: const Text('EXP',
+                                  style: TextStyle(fontSize: 9, color: Colors.white)),
+                              backgroundColor: Colors.deepPurple.shade400,
+                              padding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          if (game.isSealed)
+                            Chip(
+                              label: const Text('SEALED',
+                                  style: TextStyle(fontSize: 9, color: Colors.white)),
+                              backgroundColor: Colors.teal.shade600,
+                              padding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                        ],
                       ),
                     ),
                 ],

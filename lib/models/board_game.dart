@@ -27,6 +27,7 @@ class BoardGame {
   final double? boughtPrice;
   final double? currentPrice;
   final DateTime? acquiredAt;
+  final bool isSealed;
 
   const BoardGame({
     required this.id,
@@ -55,6 +56,7 @@ class BoardGame {
     this.boughtPrice,
     this.currentPrice,
     this.acquiredAt,
+    this.isSealed = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -84,6 +86,7 @@ class BoardGame {
         'bought_price': boughtPrice,
         'current_price': currentPrice,
         'acquired_at': acquiredAt?.toIso8601String(),
+        'is_sealed': isSealed ? 1 : 0,
       };
 
   static List<String> _parseJsonList(dynamic raw) {
@@ -124,6 +127,7 @@ class BoardGame {
         acquiredAt: map['acquired_at'] != null
             ? DateTime.tryParse(map['acquired_at'] as String)
             : null,
+        isSealed: (map['is_sealed'] as int? ?? 0) == 1,
       );
 
   BoardGame copyWith({
@@ -151,6 +155,7 @@ class BoardGame {
     Object? boughtPrice = _sentinel,
     Object? currentPrice = _sentinel,
     Object? acquiredAt = _sentinel,
+    bool? isSealed,
   }) =>
       BoardGame(
         id: id,
@@ -183,6 +188,7 @@ class BoardGame {
             : currentPrice as double?,
         acquiredAt:
             acquiredAt == _sentinel ? this.acquiredAt : acquiredAt as DateTime?,
+        isSealed: isSealed ?? this.isSealed,
       );
 }
 

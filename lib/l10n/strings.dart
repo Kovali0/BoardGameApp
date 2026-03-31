@@ -342,6 +342,7 @@ abstract class AppStrings {
   String get addGameAcquiredAtLabel;
   String get addGameAcquiredAtNone;
   String get addGameSearchCurrentPrice;
+  String get addGameSealedLabel;
 
   // Game detail — price
   String get gameDetailBoughtPrice;
@@ -770,6 +771,7 @@ class EnStrings extends AppStrings {
   @override String get addGameAcquiredAtLabel => 'Acquired';
   @override String get addGameAcquiredAtNone => 'Not set';
   @override String get addGameSearchCurrentPrice => 'Search current price';
+  @override String get addGameSealedLabel => 'Still sealed (in shrinkwrap)';
 
   // Game detail — price
   @override String get gameDetailBoughtPrice => 'Bought for';
@@ -1199,6 +1201,7 @@ class PlStrings extends AppStrings {
   @override String get addGameAcquiredAtLabel => 'Data nabycia';
   @override String get addGameAcquiredAtNone => 'Nie ustawiono';
   @override String get addGameSearchCurrentPrice => 'Szukaj aktualnej ceny';
+  @override String get addGameSealedLabel => 'Nadal w folii (folia ochronna)';
 
   // Game detail — price
   @override String get gameDetailBoughtPrice => 'Kupiona za';

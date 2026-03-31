@@ -51,6 +51,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
   late final TextEditingController _boughtPriceController;
   late final TextEditingController _currentPriceController;
   DateTime? _acquiredAt;
+  bool _isSealed = false;
 
   bool get _isEditing => widget.game != null;
 
@@ -88,6 +89,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
     _currentPriceController =
         TextEditingController(text: g?.currentPrice?.toStringAsFixed(2) ?? '');
     _acquiredAt = g?.acquiredAt ?? (_isEditing ? null : DateTime.now());
+    _isSealed = g?.isSealed ?? false;
   }
 
   @override
@@ -229,6 +231,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
         boughtPrice: boughtPrice,
         currentPrice: currentPrice,
         acquiredAt: _acquiredAt,
+        isSealed: _isSealed,
       ));
     } else {
       await provider.addGame(
@@ -254,6 +257,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
         boughtPrice: boughtPrice,
         currentPrice: currentPrice,
         acquiredAt: _acquiredAt,
+        isSealed: _isSealed,
       );
     }
     if (mounted) Navigator.pop(context);
@@ -490,6 +494,15 @@ class _AddGameScreenState extends State<AddGameScreen> {
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       color: Theme.of(context).colorScheme.tertiary)),
               const SizedBox(height: 8),
+              // Sealed toggle
+              SwitchListTile(
+                value: _isSealed,
+                onChanged: (v) => setState(() => _isSealed = v),
+                title: Text(s.addGameSealedLabel),
+                secondary: const Icon(Icons.inventory_2_outlined),
+                contentPadding: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 4),
               // Acquired date picker
               _AcquiredDateField(
                 date: _acquiredAt,

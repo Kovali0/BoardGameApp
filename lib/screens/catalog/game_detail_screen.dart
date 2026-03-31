@@ -144,6 +144,18 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                       const SizedBox(width: 8),
                       Text(s.catalogGamePlayers(game.minPlayers, game.maxPlayers),
                           style: Theme.of(context).textTheme.bodyLarge),
+                      if (game.isSealed) ...[
+                        const SizedBox(width: 10),
+                        Chip(
+                          label: const Text('SEALED',
+                              style: TextStyle(fontSize: 11, color: Colors.white)),
+                          backgroundColor: Colors.teal.shade600,
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                          avatar: const Icon(Icons.inventory_2_outlined,
+                              size: 14, color: Colors.white),
+                        ),
+                      ],
                     ],
                   ),
                   if (game.minPlaytime != null || game.maxPlaytime != null) ...[

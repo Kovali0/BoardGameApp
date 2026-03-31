@@ -40,6 +40,7 @@ class GameProvider with ChangeNotifier {
     double? boughtPrice,
     double? currentPrice,
     DateTime? acquiredAt,
+    bool isSealed = false,
   }) async {
     final game = BoardGame(
       id: _uuid.v4(),
@@ -68,6 +69,7 @@ class GameProvider with ChangeNotifier {
       boughtPrice: boughtPrice,
       currentPrice: currentPrice,
       acquiredAt: acquiredAt ?? DateTime.now(),
+      isSealed: isSealed,
     );
     await _db.insertGame(game);
     _games.add(game);
