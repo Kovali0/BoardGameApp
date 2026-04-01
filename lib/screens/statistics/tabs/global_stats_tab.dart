@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../../../models/board_game.dart';
 import '../../../models/game_session.dart';
 import '../../../providers/language_provider.dart';
+import '../../../providers/settings_provider.dart';
 import '../../../services/stats_service.dart';
 import '../shared/stat_widgets.dart';
+import '../../session/play_landing_screen.dart';
 
 class GlobalStatsTab extends StatelessWidget {
   final List<GameSession> sessions;
@@ -147,6 +149,8 @@ class GlobalStatsTab extends StatelessWidget {
           StatsSectionHeader(s.statsCollection),
           _CollectionChart(played: playedCount, unplayed: unplayedCount),
           const SizedBox(height: 20),
+          _ShelfOfShameSection(games: allGames),
+          const SizedBox(height: 20),
         ],
         if (sessions.isEmpty)
           Padding(
@@ -272,6 +276,135 @@ class _LegendItem extends StatelessWidget {
         Text('$count',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
       ],
+    );
+  }
+}
+
+// ─── Shelf of shame ───────────────────────────────────────────────────────────
+
+String _sittingFor(DateTime since) {
+  final days = DateTime.now().difference(since).inDays;
+  if (days < 7) return '${days}d';
+  if (days < 30) return '${days ~/ 7}w';
+  if (days < 365) return '${days ~/ 30}mo';
+  final years = days ~/ 365;
+  final months = (days % 365) ~/ 30;
+  return months > 0 ? '${years}y ${months}mo' : '${years}y';
+}
+
+class _ShelfOfShameSection extends StatelessWidget {
+  final List<BoardGame> games;
+  const _ShelfOfShameSection({required this.games});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
+    final symbol = context.watch<SettingsProvider>().currencySymbol;
+
+    final unplayed = games.where((g) => !g.hasBeenPlayed).toList()
+      ..sort((a, b) {
+        final da = a.acquiredAt ?? a.createdAt;
+        final db = b.acquiredAt ?? b.createdAt;
+        return da.compareTo(db); // oldest first = most shameful
+      });
+
+    if (unplayed.isEmpty) return const SizedBox.shrink();
+
+    final totalValue = unplayed
+        .where((g) => g.boughtPrice != null)
+        .fold<double>(0, (sum, g) => sum + g.boughtPrice!);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        StatsSectionHeader(s.statsShelfOfShame),
+        // Summary banner
+        Card(
+          color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(Icons.sentiment_dissatisfied_outlined,
+                    color: Theme.of(context).colorScheme.error),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        s.statsShelfCount(unplayed.length),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      if (totalValue > 0)
+                        Text(
+                          s.statsShelfValue(
+                              '${totalValue.toStringAsFixed(0)} $symbol'),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        // Game list
+        Card(
+          child: Column(
+            children: [
+              for (int i = 0; i < unplayed.length; i++) ...[
+                _ShelfGameRow(game: unplayed[i]),
+                if (i < unplayed.length - 1) const Divider(height: 1),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ShelfGameRow extends StatelessWidget {
+  final BoardGame game;
+  const _ShelfGameRow({required this.game});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
+    final since = game.acquiredAt ?? game.createdAt;
+    final sitting = _sittingFor(since);
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundImage: (game.thumbnailUrl ?? game.imageUrl) != null
+            ? NetworkImage(game.thumbnailUrl ?? game.imageUrl!)
+            : null,
+        child: (game.thumbnailUrl ?? game.imageUrl) == null
+            ? Text(game.name[0].toUpperCase())
+            : null,
+      ),
+      title: Text(game.name,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        s.statsShelfSince(sitting),
+        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.play_arrow_outlined),
+        tooltip: 'Play now',
+        color: Theme.of(context).colorScheme.primary,
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => PlayLandingScreen(preselectedGame: game)),
+        ),
+      ),
     );
   }
 }

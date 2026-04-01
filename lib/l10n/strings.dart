@@ -254,6 +254,10 @@ abstract class AppStrings {
   String get statsHeatmap;
   String get statsHeatmapLess;
   String get statsHeatmapMore;
+  String get statsShelfOfShame;
+  String statsShelfCount(int n);
+  String statsShelfValue(String v);
+  String statsShelfSince(String t);
 
   // Wishlist
   String get navWishlist;
@@ -684,6 +688,10 @@ class EnStrings extends AppStrings {
   @override String get statsHeatmap => 'ACTIVITY';
   @override String get statsHeatmapLess => 'Less';
   @override String get statsHeatmapMore => 'More';
+  @override String get statsShelfOfShame => 'SHELF OF SHAME';
+  @override String statsShelfCount(int n) => '$n unplayed ${n == 1 ? 'game' : 'games'}';
+  @override String statsShelfValue(String v) => '$v sitting on shelf';
+  @override String statsShelfSince(String t) => 'sitting for $t';
 
   // Wishlist
   @override String get navWishlist => 'Wishlist';
@@ -1109,6 +1117,10 @@ class PlStrings extends AppStrings {
   @override String get statsHeatmap => 'AKTYWNOŚĆ';
   @override String get statsHeatmapLess => 'Mniej';
   @override String get statsHeatmapMore => 'Więcej';
+  @override String get statsShelfOfShame => 'PÓŁKA WSTYDU';
+  @override String statsShelfCount(int n) => '$n ${n == 1 ? 'nieogrowana gra' : 'nieogranych gier'}';
+  @override String statsShelfValue(String v) => '$v leży na półce';
+  @override String statsShelfSince(String t) => 'leży od $t';
 
   // Wishlist
   @override String get navWishlist => 'Życzenia';
