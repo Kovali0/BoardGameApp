@@ -92,6 +92,8 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
           orElse: () => widget.game,
         );
     final s = context.watch<LanguageProvider>().strings;
+    final gameSessions = context.watch<SessionProvider>().sessionsForGame(game.id);
+    final lastPlayedDate = gameSessions.isNotEmpty ? gameSessions.first.startTime : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -242,6 +244,28 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                       ],
                     ),
                   ],
+                  ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.history,
+                            size: 18,
+                            color: lastPlayedDate != null
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.outline),
+                        const SizedBox(width: 8),
+                        Text(
+                          lastPlayedDate != null
+                              ? '${s.gameDetailLastPlayed}: ${context.watch<SettingsProvider>().formatDate(lastPlayedDate)}'
+                              : s.gameDetailNeverPlayed,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: lastPlayedDate != null
+                                  ? null
+                                  : Theme.of(context).colorScheme.outline),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (game.categories.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Text(s.pickerCategories,
@@ -292,13 +316,11 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
                     const SizedBox(height: 12),
                     const Divider(height: 1),
                     const SizedBox(height: 10),
-                    Consumer<SessionProvider>(
-                      builder: (context, sessions, _) => _PriceRows(
-                        game: game,
-                        allGames: allGames,
-                        s: s,
-                        sessionCount: sessions.sessionsForGame(game.id).length,
-                      ),
+                    _PriceRows(
+                      game: game,
+                      allGames: allGames,
+                      s: s,
+                      sessionCount: gameSessions.length,
                     ),
                   ],
                 ],
@@ -327,36 +349,29 @@ class _GameDetailScreenState extends State<GameDetailScreen> {
           const SizedBox(height: 16),
           Text(s.gameDetailPlayHistory, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          Consumer<SessionProvider>(
-            builder: (context, provider, _) {
-              final sessions = provider.sessionsForGame(game.id);
-              if (sessions.isEmpty) {
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(s.gameDetailNoSessions,
-                        style: const TextStyle(color: Colors.grey)),
-                  ),
+          if (gameSessions.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(s.gameDetailNoSessions,
+                    style: const TextStyle(color: Colors.grey)),
+              ),
+            )
+          else
+            Column(
+              children: gameSessions.map((session) {
+                final winner = session.players.isNotEmpty
+                    ? session.players.first.playerName
+                    : '?';
+                final dateStr = context.watch<SettingsProvider>().formatDate(session.startTime);
+                return ListTile(
+                  leading: const Icon(Icons.emoji_events, color: Colors.amber),
+                  title: Text(winner),
+                  subtitle: Text(dateStr),
+                  trailing: Text(session.durationFormatted),
                 );
-              }
-              return Column(
-                children: sessions.map((session) {
-                  final winner = session.players.isNotEmpty
-                      ? session.players.first.playerName
-                      : '?';
-                  final date = session.startTime;
-                  final dateStr = context.watch<SettingsProvider>().formatDate(date);
-                  return ListTile(
-                    leading:
-                        const Icon(Icons.emoji_events, color: Colors.amber),
-                    title: Text(winner),
-                    subtitle: Text(dateStr),
-                    trailing: Text(session.durationFormatted),
-                  );
-                }).toList(),
-              );
-            },
-          ),
+              }).toList(),
+            ),
 
           // Expansions section — only for base games
           if (!game.isExpansion) ...[

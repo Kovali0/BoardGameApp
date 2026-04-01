@@ -51,6 +51,9 @@ abstract class AppStrings {
   String get catalogSortZA;
   String get catalogSortRecentlyAdded;
   String get catalogSortMyRating;
+  String get catalogSortLastPlayed;
+  String get gameDetailLastPlayed;
+  String get gameDetailNeverPlayed;
   String get historySortNewest;
   String get historySortOldest;
   String get historySortByGame;
@@ -477,6 +480,9 @@ class EnStrings extends AppStrings {
   @override String get catalogSortZA => 'Z → A';
   @override String get catalogSortRecentlyAdded => 'Recently added';
   @override String get catalogSortMyRating => 'My rating';
+  @override String get catalogSortLastPlayed => 'Last played';
+  @override String get gameDetailLastPlayed => 'Last played';
+  @override String get gameDetailNeverPlayed => 'Never played';
   @override String get historySortNewest => 'Newest first';
   @override String get historySortOldest => 'Oldest first';
   @override String get historySortByGame => 'By game name';
@@ -914,6 +920,9 @@ class PlStrings extends AppStrings {
   @override String get catalogSortZA => 'Z → A';
   @override String get catalogSortRecentlyAdded => 'Ostatnio dodane';
   @override String get catalogSortMyRating => 'Moja ocena';
+  @override String get catalogSortLastPlayed => 'Ostatnio grane';
+  @override String get gameDetailLastPlayed => 'Ostatnio zagrana';
+  @override String get gameDetailNeverPlayed => 'Nigdy nie zagrana';
   @override String get historySortNewest => 'Najnowsze';
   @override String get historySortOldest => 'Najstarsze';
   @override String get historySortByGame => 'Po nazwie gry';

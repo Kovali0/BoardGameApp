@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/language_provider.dart';
+import '../../providers/session_provider.dart';
 import '../../providers/wishlist_provider.dart';
 import '../../models/board_game.dart';
 import '../../models/wishlist_item.dart';
@@ -14,7 +15,7 @@ import '../wishlist/wishlist_screen.dart' show WishlistCard, WishlistGridCard;
 
 enum _ViewMode { list, grid }
 
-enum _SortOrder { az, za, recentlyAdded, myRating }
+enum _SortOrder { az, za, recentlyAdded, myRating, lastPlayed }
 
 enum _GameTypeFilter { all, baseOnly, expansionsOnly }
 
@@ -79,7 +80,11 @@ class _Filters {
 
 // ─── Sort helper ──────────────────────────────────────────────────────────────
 
-List<BoardGame> _applySortOrder(List<BoardGame> games, _SortOrder sort) {
+List<BoardGame> _applySortOrder(
+  List<BoardGame> games,
+  _SortOrder sort, {
+  Map<String, DateTime> lastPlayed = const {},
+}) {
   final list = List<BoardGame>.from(games);
   switch (sort) {
     case _SortOrder.az:
@@ -93,6 +98,15 @@ List<BoardGame> _applySortOrder(List<BoardGame> games, _SortOrder sort) {
         final ra = a.myRating ?? a.bggRating ?? 0.0;
         final rb = b.myRating ?? b.bggRating ?? 0.0;
         return rb.compareTo(ra);
+      });
+    case _SortOrder.lastPlayed:
+      list.sort((a, b) {
+        final da = lastPlayed[a.id];
+        final db = lastPlayed[b.id];
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;  // never played → end
+        if (db == null) return -1;
+        return db.compareTo(da); // most recently played first
       });
   }
   return list;
@@ -295,6 +309,7 @@ class _CatalogScreenState extends State<CatalogScreen>
                     PopupMenuItem(value: _SortOrder.za, child: Text(s.catalogSortZA)),
                     PopupMenuItem(value: _SortOrder.recentlyAdded, child: Text(s.catalogSortRecentlyAdded)),
                     PopupMenuItem(value: _SortOrder.myRating, child: Text(s.catalogSortMyRating)),
+                    PopupMenuItem(value: _SortOrder.lastPlayed, child: Text(s.catalogSortLastPlayed)),
                   ],
                 ),
                 Stack(
@@ -396,8 +411,14 @@ class _CatalogScreenState extends State<CatalogScreen>
                 ),
               ),
               Expanded(
-                child: Consumer<GameProvider>(
-                  builder: (context, provider, _) {
+                child: Consumer2<GameProvider, SessionProvider>(
+                  builder: (context, provider, sessionProvider, _) {
+                    // Build gameId → most recent session date map (sessions are DESC)
+                    final lastPlayed = <String, DateTime>{};
+                    for (final s in sessionProvider.sessions) {
+                      lastPlayed.putIfAbsent(s.gameId, () => s.startTime);
+                    }
+
                     if (provider.games.isEmpty) {
                       return Center(
                         child: Column(
@@ -445,7 +466,7 @@ class _CatalogScreenState extends State<CatalogScreen>
                       );
                     }
 
-                    filtered = _applySortOrder(filtered, _sortOrder);
+                    filtered = _applySortOrder(filtered, _sortOrder, lastPlayed: lastPlayed);
 
                     if (_viewMode == _ViewMode.grid) {
                       return GridView.builder(
