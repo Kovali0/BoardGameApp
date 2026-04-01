@@ -337,3 +337,52 @@ Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Command Processor' -Name 'Au
 **Cause:** Using `icon.png` directly as `adaptive_icon_foreground` ignores Android's 66% safe zone.
 
 **Fix:** Use the padded `icon_foreground.png` (see [App Icon](#app-icon) section).
+
+---
+
+## Feature Ideas & Roadmap
+
+Ideas collected across development sessions. Grouped by effort and theme.
+
+### From the backlog (confirmed interest)
+
+| Feature | Description | Effort |
+|---------|-------------|--------|
+| **Loan tracker** | Mark a game as lent out — to whom, since when. Badge on catalog card. One-tap "returned" button. Needs a new DB table. | Medium |
+| **Streak / monthly goal** | "Played 8 sessions this month · goal: 10" — progress bar on Global Stats tab. Goal set in Settings. | Low |
+| **Achievements / badges** | Local milestones: "First Win", "Marathon" (session >3h), "Explorer" (10 different games), "Century" (100 sessions), "Completionist" (all owned games played), etc. Shown in Statistics. | High |
+
+### Easy wins from existing data
+
+| Feature | Description | Effort |
+|---------|-------------|--------|
+| **Last played in game detail** | Compute most recent session and show "Last played: 3 months ago" in the game card. Add "Last played" as a sort option in the catalog. | Low |
+| **Play count on catalog cards** | Small session count badge (e.g. ×12) on list and grid cards — instant sense of which games are getting played. | Very low |
+| **Best day to play** | From all sessions: "You play most on Saturdays — 42% of sessions." Single stat row in Global Stats. | Low |
+
+### Bigger features
+
+| Feature | Description | Effort |
+|---------|-------------|--------|
+| **Quick session log (no timer)** | Log a past/completed session without the timer flow — pick game, enter duration, add players & scores. Useful for retroactive logging. | Medium |
+| **BGG rating sync** | When syncing BGG collection, optionally pull personal BGG ratings into `myRating`. One toggle in Settings. | Low |
+
+### Already implemented
+
+- BGG collection sync (username → bulk import)
+- Import from JSON backup + CSV (collection, sessions, wishlist)
+- Collection price tracking (`boughtPrice`, `currentPrice`, `acquiredAt`)
+- Collection value summary card (collapsible, in catalog)
+- Cost per play (game detail — boughtPrice / session count)
+- Sealed / shrinkwrap flag (`isSealed` — badge in catalog + detail)
+- Session activity heatmap (52-week grid, Global Stats tab)
+- Shelf of shame (unplayed games sorted by time sitting, with Play button)
+- Game night picker ("What should we play?" with 8 filter types)
+- Expansion session tracking (sessions linked to expansions, stats)
+- Team game support (team names, colored badges, team stats)
+- Head-to-head player stats
+- BGG metadata (categories, mechanics, yearPublished, minAge)
+- Wishlist with BGG search + price search
+- Export: ZIP (JSON + 4 CSVs), individual files
+- Rematch button (history + session detail)
+- i18n: English + Polish
