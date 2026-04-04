@@ -17,7 +17,7 @@ class GamesStatsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
-    final statsMap = StatsService.computeGameStats(sessions);
+    final statsMap = StatsService.computeGameStats(sessions, allGames);
     final playedGames = statsMap.values.toList()
       ..sort((a, b) => b.sessionCount.compareTo(a.sessionCount));
 

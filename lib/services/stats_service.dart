@@ -1,4 +1,5 @@
 import '../models/game_session.dart';
+import '../models/board_game.dart';
 
 // ─── Data classes ─────────────────────────────────────────────────────────────
 
@@ -154,9 +155,19 @@ class StatsService {
 
   /// Aggregates per-game stats from [sessions].
   /// Returns a map of gameId → [GameStatsData], sorted by session count desc.
+  /// If [allGames] is provided, expansion games will also get their own stat entries.
   static Map<String, GameStatsData> computeGameStats(
-      List<GameSession> sessions) {
+      List<GameSession> sessions, [List<BoardGame> allGames = const []]) {
     final statsMap = <String, GameStatsData>{};
+    final expansionNameMap = <String, String>{};
+    
+    // Build a map of expansion IDs to names for quick lookup
+    for (final game in allGames) {
+      if (game.isExpansion) {
+        expansionNameMap[game.id] = game.name;
+      }
+    }
+
     for (final sess in sessions) {
       final data = statsMap.putIfAbsent(
           sess.gameId, () => GameStatsData(id: sess.gameId, name: sess.gameName));
@@ -191,6 +202,39 @@ class StatsService {
       for (final expId in sess.expansionIds) {
         data.expansionUseCounts[expId] =
             (data.expansionUseCounts[expId] ?? 0) + 1;
+
+        // Also create/update stats for the expansion itself
+        final expName = expansionNameMap[expId] ?? expId;
+        final expData = statsMap.putIfAbsent(expId,
+            () => GameStatsData(id: expId, name: expName));
+        expData.sessionCount++;
+        expData.totalSeconds += sess.durationSeconds;
+        expData.totalPlayers += sess.players.length;
+        if (expData.lastPlayed == null ||
+            sess.startTime.isAfter(expData.lastPlayed!)) {
+          expData.lastPlayed = sess.startTime;
+        }
+        if (expData.longestSeconds == null ||
+            sess.durationSeconds > expData.longestSeconds!) {
+          expData.longestSeconds = sess.durationSeconds;
+        }
+        if (expData.shortestSeconds == null ||
+            sess.durationSeconds < expData.shortestSeconds!) {
+          expData.shortestSeconds = sess.durationSeconds;
+        }
+        for (final p in sess.players) {
+          if (p.score != null) {
+            expData.scores.add(p.score!);
+            final prev = expData.playerBestScore[p.playerName];
+            if (prev == null || p.score! > prev) {
+              expData.playerBestScore[p.playerName] = p.score!;
+            }
+          }
+          if (p.rank == 1) {
+            expData.playerWins[p.playerName] =
+                (expData.playerWins[p.playerName] ?? 0) + 1;
+          }
+        }
       }
     }
     return statsMap;
