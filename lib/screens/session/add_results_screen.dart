@@ -31,6 +31,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
 
   final List<TextEditingController> _nameControllers = [];
   final List<TextEditingController> _scoreControllers = [];
+  final List<TextEditingController> _teamControllers = [];
 
   // key = base rank, value = ordered list of player indices (as strings) in that tie group
   final Map<int, List<String>> _tieOrder = {};
@@ -69,6 +70,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     _locationController.dispose();
     for (final c in _nameControllers) c.dispose();
     for (final c in _scoreControllers) c.dispose();
+    for (final c in _teamControllers) c.dispose();
     super.dispose();
   }
 
@@ -92,6 +94,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     setState(() {
       _nameControllers.add(TextEditingController());
       _scoreControllers.add(TextEditingController());
+      _teamControllers.add(TextEditingController());
       _tieOrder
         ..clear()
         ..addAll(RankingService.syncTieOrder(_computeBaseRanks(), {}));
@@ -103,8 +106,10 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     setState(() {
       _nameControllers[index].dispose();
       _scoreControllers[index].dispose();
+      _teamControllers[index].dispose();
       _nameControllers.removeAt(index);
       _scoreControllers.removeAt(index);
+      _teamControllers.removeAt(index);
       _tieOrder
         ..clear()
         ..addAll(RankingService.syncTieOrder(_computeBaseRanks(), {}));
@@ -178,17 +183,23 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
     // Resolve players with final ranks
     final finalRanks = _computeFinalRanks();
     final players = <Map<String, dynamic>>[];
+    final teamAssignments = <String, String>{};
     for (int i = 0; i < _nameControllers.length; i++) {
       final name = _nameControllers[i].text.trim();
       if (name.isEmpty) continue;
       final scoreText = _scoreControllers[i].text.trim();
+      final teamText = _teamControllers[i].text.trim();
       final rank = finalRanks['$i'] ?? 0;
       players.add({
         'name': name,
         'score': scoreText.isEmpty ? null : int.tryParse(scoreText),
         'rank': rank == 0 ? 1 : rank,
         'startedGame': false,
+        'teamName': teamText.isNotEmpty ? teamText : null,
       });
+      if (teamText.isNotEmpty) {
+        teamAssignments[name] = teamText;
+      }
     }
     if (players.length < 2) { _snack(s.addResultsMinPlayersError); return; }
 
@@ -221,6 +232,7 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
             gameName: game!.name,
             durationSeconds: totalSeconds,
             playerResults: players,
+            teamAssignments: teamAssignments,
           ),
         ),
       );
@@ -528,6 +540,20 @@ class _AddResultsScreenState extends State<AddResultsScreen> {
                             const TextInputType.numberWithOptions(signed: true),
                         textAlign: TextAlign.center,
                         onChanged: (_) => _onScoreChanged(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 80,
+                      child: TextField(
+                        controller: _teamControllers[i],
+                        decoration: InputDecoration(
+                          hintText: s.teamAssign,
+                          isDense: true,
+                          border: const OutlineInputBorder(),
+                        ),
+                        textCapitalization: TextCapitalization.words,
+                        textAlign: TextAlign.center,
                       ),
                     ),
                     if (_nameControllers.length > 2)

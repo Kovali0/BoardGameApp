@@ -73,10 +73,11 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
               'score': null as int?,
               'startedGame': name == widget.starterName,
               'scoreController': TextEditingController(),
+              'teamController': TextEditingController(text: widget.teamAssignments[name] ?? ''),
             })
         .toList();
 
-    // Init team score controllers
+    // Init team score controllers if teams are pre-assigned
     if (widget.teamAssignments.isNotEmpty) {
       final teams = widget.teamAssignments.values.toSet();
       for (final team in teams) {
@@ -93,6 +94,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
     _locationController.dispose();
     for (final p in _playerData) {
       (p['scoreController'] as TextEditingController).dispose();
+      (p['teamController'] as TextEditingController).dispose();
     }
     for (final c in _teamScoreControllers.values) c.dispose();
     super.dispose();
@@ -101,14 +103,17 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
   // ── Team helpers ──
 
   Map<String, List<String>> get _teamGroups {
-    if (widget.teamAssignments.isEmpty) return {};
     final groups = <String, List<String>>{};
-    for (final name in widget.players) {
-      final team = widget.teamAssignments[name];
-      if (team != null) groups.putIfAbsent(team, () => []).add(name);
+    for (final p in _playerData) {
+      final team = (p['teamController'] as TextEditingController).text.trim();
+      if (team.isNotEmpty) {
+        groups.putIfAbsent(team, () => []).add(p['name'] as String);
+      }
     }
     return groups;
   }
+
+  bool get _isTeamMode => widget.teamAssignments.isNotEmpty || _teamGroups.isNotEmpty;
 
   List<String> get _sortedTeamNames => _teamGroups.keys.toList()..sort();
 
@@ -174,13 +179,34 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
 
     List<Map<String, dynamic>> saveData;
     List<Map<String, dynamic>> resultsData;
+    Map<String, String> finalTeamAssignments = widget.teamAssignments;
 
-    if (widget.teamAssignments.isNotEmpty) {
+    if (_isTeamMode) {
+      // Build team assignments from user input if not pre-assigned
+      if (widget.teamAssignments.isEmpty) {
+        finalTeamAssignments = {};
+        for (final p in _playerData) {
+          final team = (p['teamController'] as TextEditingController).text.trim();
+          if (team.isNotEmpty) {
+            finalTeamAssignments[p['name'] as String] = team;
+          }
+        }
+      }
+
+      // Ensure team score controllers are initialized
+      if (_teamScoreControllers.isEmpty) {
+        final teams = finalTeamAssignments.values.toSet();
+        for (final team in teams) {
+          _teamScoreControllers[team] = TextEditingController();
+          _teamScores[team] = null;
+        }
+      }
+
       // Team mode
       final teamRanks = _computeTeamRanks();
       saveData = _playerData.map((p) {
         final name = p['name'] as String;
-        final team = widget.teamAssignments[name] ?? '';
+        final team = finalTeamAssignments[name] ?? '';
         return {
           'name': name,
           'score': _teamScores[team],
@@ -240,7 +266,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
             gameName: widget.game.name,
             durationSeconds: widget.durationSeconds,
             playerResults: resultsData,
-            teamAssignments: widget.teamAssignments,
+            teamAssignments: finalTeamAssignments,
           ),
         ),
       );
@@ -352,7 +378,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
   Widget build(BuildContext context) {
     final s = context.watch<LanguageProvider>().strings;
     final theme = Theme.of(context);
-    final isTeamMode = widget.teamAssignments.isNotEmpty;
+    final isTeamMode = _isTeamMode;
     final base = isTeamMode
         ? <String, int>{}
         : RankingService.computeBaseRanks(_playerScores);
@@ -520,6 +546,23 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                           onChanged: (_) => _onScoreChanged(),
                         ),
                       ),
+                      if (widget.teamAssignments.isEmpty) ...[
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 80,
+                          child: TextField(
+                            controller: p['teamController'] as TextEditingController,
+                            decoration: InputDecoration(
+                              hintText: s.teamAssign,
+                              isDense: true,
+                              border: const OutlineInputBorder(),
+                            ),
+                            textCapitalization: TextCapitalization.words,
+                            textAlign: TextAlign.center,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -45,14 +45,45 @@ class GameResultsScreen extends StatelessWidget {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final s = context.watch<LanguageProvider>().strings;
-    final theme = Theme.of(context);
+  Map<String, List<Map<String, dynamic>>> get _teamGroups {
+    if (teamAssignments.isEmpty) return {};
+    final groups = <String, List<Map<String, dynamic>>>{};
+    for (final p in playerResults) {
+      final team = teamAssignments[p['name']];
+      if (team != null) {
+        groups.putIfAbsent(team, () => []).add(p);
+      }
+    }
+    return groups;
+  }
 
-    // Sort by rank ascending, then by name for ties
-    final sorted = List<Map<String, dynamic>>.from(playerResults)
-      ..sort((a, b) {
+  List<Map<String, dynamic>> get _sortedResults {
+    if (teamAssignments.isEmpty) {
+      return List<Map<String, dynamic>>.from(playerResults)
+        ..sort((a, b) {
+          final ra = (a['rank'] as int?) ?? 0;
+          final rb = (b['rank'] as int?) ?? 0;
+          if (ra == 0 && rb == 0) return 0;
+          if (ra == 0) return 1;
+          if (rb == 0) return -1;
+          return ra.compareTo(rb);
+        });
+    } else {
+      // For teams, show team results
+      final teamResults = <Map<String, dynamic>>[];
+      for (final entry in _teamGroups.entries) {
+        final teamName = entry.key;
+        final members = entry.value;
+        final teamRank = members.first['rank'] as int?; // Assume all have same rank
+        final teamScore = members.first['score'] as int?; // Assume all have same score
+        teamResults.add({
+          'name': teamName,
+          'rank': teamRank,
+          'score': teamScore,
+          'members': members.map((m) => m['name']).join(', '),
+        });
+      }
+      teamResults.sort((a, b) {
         final ra = (a['rank'] as int?) ?? 0;
         final rb = (b['rank'] as int?) ?? 0;
         if (ra == 0 && rb == 0) return 0;
@@ -60,6 +91,17 @@ class GameResultsScreen extends StatelessWidget {
         if (rb == 0) return -1;
         return ra.compareTo(rb);
       });
+      return teamResults;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<LanguageProvider>().strings;
+    final theme = Theme.of(context);
+
+    // Sort by rank ascending, then by name for ties
+    final sorted = _sortedResults;
 
     return Scaffold(
       appBar: AppBar(
@@ -84,7 +126,7 @@ class GameResultsScreen extends StatelessWidget {
                         _SummaryItem(icon: Icons.timer, label: _formattedDuration),
                         _SummaryItem(
                           icon: Icons.group,
-                          label: '${playerResults.length}p',
+                          label: teamAssignments.isNotEmpty ? '${_teamGroups.length} teams' : '${playerResults.length}p',
                         ),
                       ],
                     ),
@@ -98,6 +140,7 @@ class GameResultsScreen extends StatelessWidget {
                   final rank = (p['rank'] as int?) ?? 0;
                   final score = p['score'] as int?;
                   final name = p['name'] as String;
+                  final members = p['members'] as String?;
 
                   final medals = ['🥇', '🥈', '🥉'];
                   final medal = rank >= 1 && rank <= 3
@@ -125,6 +168,15 @@ class GameResultsScreen extends StatelessWidget {
                               : null,
                         ),
                       ),
+                      subtitle: members != null && members.isNotEmpty
+                          ? Text(
+                              members,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            )
+                          : null,
                       trailing: score != null
                           ? Text(
                               '$score pts',
